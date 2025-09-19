@@ -21,10 +21,11 @@ instance_path.mkdir(parents=True, exist_ok=True)
 db_file = instance_path / 'app.db'
 abs_db_uri = f"sqlite:///{db_file.resolve()}"
 
-# Set environment variables if not already set
-os.environ.setdefault('FLASK_ENV', 'development')
-os.environ.setdefault('FLASK_APP', 'run.py')
-os.environ.setdefault('DATABASE_URL', abs_db_uri)
+# Force environment variables for development
+os.environ['FLASK_ENV'] = 'development'
+os.environ['FLASK_APP'] = 'run.py'
+# Force the app to use local SQLite in development to avoid trying to connect to Postgres
+os.environ['DATABASE_URL'] = abs_db_uri
 
 app = create_app()
 

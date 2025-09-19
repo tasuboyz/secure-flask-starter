@@ -34,7 +34,7 @@
                             <ul class="dropdown-menu">
                                 <li>
                                     <form method="POST" action="{{ url_for('auth.logout') }}" class="d-inline">
-                                        {{ csrf_token() }}
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="dropdown-item">Logout</button>
                                     </form>
                                 </li>
