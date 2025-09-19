@@ -2,4 +2,9 @@
 /.pytest_cache
 /.venv
 /instance
-/__pycache__
+# Ignore Python caches and compiled files anywhere in the repo
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+*.db
+.DS_Store
