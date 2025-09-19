@@ -1,0 +1,39 @@
+/* Custom styles for Pro Project */
+
+body {
+    background-color: #f8f9fa;
+}
+
+.jumbotron {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.btn {
+    border-radius: 0.375rem;
+}
+
+.alert {
+    border-radius: 0.5rem;
+}
+
+/* Fix for Bootstrap dropdown */
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}

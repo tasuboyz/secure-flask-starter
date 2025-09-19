@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Dashboard Utente</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Informazioni Account</h5>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Email:</strong></td>
+                                <td>{{ user.email }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Stato:</strong></td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge bg-success">Attivo</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Disattivato</span>
+                                    {% endif %}
+                                    {% if user.is_admin %}
+                                        <span class="badge bg-warning">Admin</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Membro dal:</strong></td>
+                                <td>{{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Ultimo accesso:</strong></td>
+                                <td>{{ user.last_login_at.strftime('%d/%m/%Y %H:%M') if user.last_login_at else 'Primo accesso' }}</td>
+                            </tr>
+                            {% if user.last_login_ip %}
+                            <tr>
+                                <td><strong>IP ultimo accesso:</strong></td>
+                                <td>{{ user.last_login_ip }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5>Sicurezza</h5>
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">Password</h6>
+                                <p class="card-text">
+                                    {% if user.last_password_change_at %}
+                                        Ultima modifica: {{ user.last_password_change_at.strftime('%d/%m/%Y %H:%M') }}
+                                    {% else %}
+                                        Password impostata alla registrazione
+                                    {% endif %}
+                                </p>
+                                <a href="{{ url_for('auth.forgot_password') }}" class="btn btn-outline-primary btn-sm">Cambia Password</a>
+                            </div>
+                        </div>
+                        
+                        <div class="card mt-3">
+                            <div class="card-body">
+                                <h6 class="card-title">🔒 Sicurezza Account</h6>
+                                <ul class="list-unstyled">
+                                    <li>✅ Password hash con Argon2</li>
+                                    <li>✅ Protezione CSRF attiva</li>
+                                    <li>✅ Rate limiting abilitato</li>
+                                    <li>✅ Sessioni sicure</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

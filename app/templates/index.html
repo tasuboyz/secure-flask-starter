@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="jumbotron bg-light p-5 rounded">
+            <h1 class="display-4">Benvenuto in Pro Project</h1>
+            <p class="lead">Un'applicazione Flask sicura con autenticazione pronta per la produzione.</p>
+            <hr class="my-4">
+            <p>Questo progetto implementa le migliori pratiche per la sicurezza, inclusa l'hash delle password con Argon2, protezione CSRF, rate limiting e gestione sicura delle sessioni.</p>
+            
+            {% if not current_user.is_authenticated %}
+                <div class="mt-4">
+                    <a class="btn btn-primary btn-lg me-3" href="{{ url_for('auth.register') }}" role="button">Inizia ora - Registrati</a>
+                    <a class="btn btn-outline-primary btn-lg" href="{{ url_for('auth.login') }}" role="button">Hai già un account? Accedi</a>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="row mt-5">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">🔒 Sicurezza</h5>
+                        <p class="card-text">Hash delle password con Argon2, protezione CSRF, rate limiting e sessioni sicure.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">⚡ Performance</h5>
+                        <p class="card-text">Ottimizzato per la produzione con PostgreSQL, Redis e monitoraggio integrato.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">🧪 Testing</h5>
+                        <p class="card-text">Suite di test completa con pytest per garantire qualità e affidabilità.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
