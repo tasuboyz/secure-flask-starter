@@ -5,12 +5,14 @@ from flask_mail import Mail
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
+from authlib.integrations.flask_client import OAuth
 
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 mail = Mail()
+oauth = OAuth()
 # Create a Limiter instance that will be initialized with the app.
 # The actual storage backend (Redis or in-memory) is chosen during
 # app initialization so we can gracefully fall back to in-memory

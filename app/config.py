@@ -25,6 +25,10 @@ class Config:
     
     # Rate limiting
     RATELIMIT_STORAGE_URI = os.environ.get('REDIS_URL') or 'memory://'
+    
+    # Google OAuth
+    GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+    GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 
 
 class DevelopmentConfig(Config):

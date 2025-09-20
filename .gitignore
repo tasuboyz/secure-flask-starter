@@ -8,3 +8,6 @@
 **/*$py.class
 *.db
 .DS_Store
+
+# OAuth credentials
+client_secret_*.json

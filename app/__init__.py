@@ -3,7 +3,7 @@ from flask import Flask
 from dotenv import load_dotenv
 
 from app.config import config
-from app.extensions import db, migrate, login_manager, mail, limiter, csrf
+from app.extensions import db, migrate, login_manager, mail, limiter, csrf, oauth
 
 
 def create_app(config_name=None):
@@ -24,6 +24,23 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     mail.init_app(app)
+
+    # Initialize OAuth and register Google provider
+    oauth.init_app(app)
+    google_client_id = app.config.get('GOOGLE_CLIENT_ID')
+    google_client_secret = app.config.get('GOOGLE_CLIENT_SECRET')
+    
+    if google_client_id and google_client_secret:
+        app.logger.info('Registering Google OAuth provider')
+        oauth.register(
+            name='google',
+            client_id=google_client_id,
+            client_secret=google_client_secret,
+            server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+            client_kwargs={'scope': 'openid email profile'},
+        )
+    else:
+        app.logger.warning(f'Google OAuth not configured - client_id: {bool(google_client_id)}, client_secret: {bool(google_client_secret)}')
 
     # Initialize rate limiter with storage backend from config.
     # If `RATELIMIT_STORAGE_URI` points to Redis, try a quick PING to
