@@ -13,11 +13,17 @@ class Config:
     
     # Mail settings
     MAIL_SERVER = os.environ.get('MAIL_SERVER') or 'localhost'
-    MAIL_PORT = int(os.environ.get('MAIL_PORT') or 25)
-    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'false').lower() in ['true', 'on', '1']
+    # Default to modern submission port with STARTTLS
+    MAIL_PORT = int(os.environ.get('MAIL_PORT') or 587)
+    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
+    MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'false').lower() in ['true', 'on', '1']
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'noreply@example.com'
+    MAIL_FROM_NAME = os.environ.get('MAIL_FROM_NAME') or 'Secure Flask Starter'
+    # Support multiple providers (smtp, sendgrid, mailgun...). Keep default as smtp.
+    MAIL_PROVIDER = os.environ.get('MAIL_PROVIDER') or 'smtp'
+    MAIL_RATE_LIMIT = os.environ.get('MAIL_RATE_LIMIT') or None
     
     # Security settings
     WTF_CSRF_ENABLED = True
