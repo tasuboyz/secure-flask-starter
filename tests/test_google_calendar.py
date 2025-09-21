@@ -129,11 +129,11 @@ def test_create_event(mock_request, app, db):
         assert result['id'] == 'event123'
         assert result['summary'] == 'Test Meeting'
 
-        # Verify the API was called with correct data
-        mock_request.assert_called_once()
-        call_args = mock_request.call_args
-        assert call_args[0][1] == 'POST'  # method
-        assert call_args[0][2] == 'calendars/primary/events'  # endpoint
+        # Verify a POST to create the event was issued (timezone detection may call GETs)
+        # Find any POST call in the recorded calls
+        post_calls = [c for c in mock_request.call_args_list if c[0][1] == 'POST' and c[0][2] == 'calendars/primary/events']
+        assert len(post_calls) >= 1, f'Expected at least one POST to calendars/primary/events, got calls: {mock_request.call_args_list}'
+        call_args = post_calls[0]
 
         # Check event data structure
         event_data = call_args[1]['json']

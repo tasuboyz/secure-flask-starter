@@ -118,6 +118,80 @@ def make_calendar_request(user, method, endpoint, **kwargs):
     return requests.request(method, url, timeout=30, **kwargs)
 
 
+def get_primary_calendar_timezone(user) -> dict:
+    """Return info about the primary calendar timezone for the user.
+
+    Returns a dict with:
+      - timezone: str (e.g. 'Europe/Rome' or 'UTC')
+      - permission_error: bool (True if request was rejected due to scopes)
+      - error_body: optional raw response body for debugging
+
+    This wraps the calendars/primary request and falls back to inferring
+    an offset from recent events if the direct call fails.
+    """
+
+    # Request only the timezone field to minimize permissions/response size
+    resp = make_calendar_request(user, 'GET', 'calendars/primary?fields=timeZone')
+    # If non-2xx status, log response for debugging
+    if resp.status_code != 200:
+        try:
+            current_app.logger.debug('Failed calendars/primary for user %s: status=%s body=%s', getattr(user, 'id', '<anon>'), resp.status_code, resp.text)
+            body = resp.text
+        except Exception:
+            current_app.logger.debug('Failed calendars/primary for user %s with status %s (no body available)', getattr(user, 'id', '<anon>'), resp.status_code)
+            body = None
+        # If 403, caller likely lacks scopes
+        permission_error = resp.status_code == 403
+    else:
+        try:
+            data = resp.json()
+            tz = data.get('timeZone')
+            if tz:
+                return {'timezone': tz, 'permission_error': False, 'error_body': None}
+        except Exception:
+            permission_error = False
+            body = None
+
+    # Fallback: try to fetch a recent event and infer timezone from its start datetime offset
+    try:
+        now = datetime.utcnow()
+        params = {
+            'timeMin': (now - timedelta(days=1)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+            'timeMax': (now + timedelta(days=1)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+            'maxResults': 1,
+            'singleEvents': True,
+            'orderBy': 'startTime'
+        }
+        ev_resp = make_calendar_request(user, 'GET', 'calendars/primary/events', params=params)
+        if ev_resp.status_code == 200:
+            try:
+                items = ev_resp.json().get('items', [])
+                if items:
+                    start = items[0].get('start', {})
+                    dt_str = start.get('dateTime') or start.get('date')
+                    if dt_str and '+' in dt_str:
+                        # Extract offset (+02:00 etc.) and return as timezone hint
+                        offset = dt_str.split('+')[-1]
+                        return {'timezone': f'UTC+{offset}', 'permission_error': False, 'error_body': None}
+                    if dt_str and '-' in dt_str and dt_str.count('-') >= 2:
+                        # This is a rough heuristic for negative offsets
+                        parts = dt_str.rsplit('-', 1)
+                        if len(parts) == 2 and ':' in parts[1]:
+                            return {'timezone': f'UTC-{parts[1]}', 'permission_error': False, 'error_body': None}
+            except Exception as e:
+                current_app.logger.debug('Error parsing events response for timezone fallback for user %s: %s', getattr(user, 'id', '<anon>'), str(e))
+        else:
+            try:
+                current_app.logger.debug('Timezone fallback events request failed for user %s: status=%s body=%s', getattr(user, 'id', '<anon>'), ev_resp.status_code, ev_resp.text)
+            except Exception:
+                current_app.logger.debug('Timezone fallback events request failed for user %s with status %s', getattr(user, 'id', '<anon>'), ev_resp.status_code)
+    except Exception as e:
+        current_app.logger.debug('Error during timezone fallback for user %s: %s', getattr(user, 'id', '<anon>'), str(e))
+
+    current_app.logger.debug('Could not determine primary calendar timezone for user %s; defaulting to UTC', getattr(user, 'id', '<anon>'))
+    return {'timezone': 'UTC', 'permission_error': permission_error if 'permission_error' in locals() else False, 'error_body': body if 'body' in locals() else None}
+
+
 def get_events(user, start_time=None, end_time=None, max_results=10):
     """Get events from user's primary calendar.
     
@@ -234,16 +308,31 @@ def create_event(user, start_time, end_time, title, description="", attendees=No
     Returns:
         dict: Created event data from Google Calendar API
     """
+    # Try to determine the user's calendar timezone; if not available default to UTC
+    cal_tz_info = get_primary_calendar_timezone(user)
+    if isinstance(cal_tz_info, dict):
+        cal_tz = cal_tz_info.get('timezone', 'UTC')
+    else:
+        cal_tz = cal_tz_info or 'UTC'
+
+    def _to_rfc3339_with_tz(dt: datetime, tz_name: str) -> str:
+        # If dt is naive, assume tz_name refers to local timezone and attach UTC
+        if dt.tzinfo is None:
+            # treat naive as UTC to avoid ambiguity
+            dt = dt.replace(tzinfo=timezone.utc)
+        # Use ISO with offset (Google accepts ISO with offset or Z)
+        return dt.isoformat()
+
     event_data = {
         'summary': title,
         'description': description,
         'start': {
-            'dateTime': start_time.isoformat() + 'Z',
-            'timeZone': 'UTC'
+            'dateTime': _to_rfc3339_with_tz(start_time, cal_tz),
+            'timeZone': cal_tz
         },
         'end': {
-            'dateTime': end_time.isoformat() + 'Z', 
-            'timeZone': 'UTC'
+            'dateTime': _to_rfc3339_with_tz(end_time, cal_tz),
+            'timeZone': cal_tz
         }
     }
     

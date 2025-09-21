@@ -328,3 +328,32 @@ def google_calendar_callback():
         current_app.logger.error(f'Google Calendar OAuth error: {str(e)}')
         flash('Errore durante il collegamento del Google Calendar.', 'danger')
         return redirect(url_for('main.dashboard'))
+
+
+@bp.route('/google/calendar/reauthorize')
+@login_required
+def google_calendar_reauthorize():
+    """Force reauthorization flow for Google Calendar scopes.
+
+    This route is useful when an existing connection lacks calendar scopes
+    (user saw ACCESS_TOKEN_SCOPE_INSUFFICIENT). It will force the OAuth
+    consent screen and request the calendar.events scope again, ensuring
+    the app receives a refresh token when possible.
+    """
+    try:
+        google_client = oauth.google
+        calendar_scope = 'openid email profile https://www.googleapis.com/auth/calendar.events'
+        redirect_uri = url_for('auth.google_calendar_callback', _external=True)
+
+        # Force consent and request offline access to try and obtain refresh token
+        current_app.logger.info('Initiating Google Calendar reauthorization')
+        return google_client.authorize_redirect(
+            redirect_uri,
+            scope=calendar_scope,
+            access_type='offline',
+            prompt='consent'
+        )
+    except AttributeError:
+        current_app.logger.warning('OAuth google provider not registered')
+        flash('Google OAuth non è configurato.', 'danger')
+        return redirect(url_for('main.dashboard'))

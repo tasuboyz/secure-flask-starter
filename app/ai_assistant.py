@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Tuple
 from flask import current_app
 from dataclasses import dataclass
+from app.google_calendar import get_primary_calendar_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -78,11 +79,17 @@ class AIAssistantService:
             except Exception:
                 logger.debug('Incoming message (logging helper failed)')
 
-            # Build basic prompt for conversation
+            # Detect user's calendar timezone (fall back to UTC)
+            try:
+                user_tz = get_primary_calendar_timezone(user)
+            except Exception:
+                user_tz = 'UTC'
+
+            # Build basic prompt for conversation and include user's timezone
             prompt = [
                 {
                     "role": "system",
-                    "content": f"You are a helpful assistant with access to Google Calendar functions. The user's timezone is UTC. Current time is {datetime.now().isoformat()}. Respond in {language}."
+                    "content": f"You are a helpful assistant with access to Google Calendar functions. The user's timezone is {user_tz}. Current time is {datetime.now().isoformat()}. Respond in {language}."
                 },
                 {
                     "role": "user",
@@ -461,10 +468,19 @@ class AIAssistantService:
         try:
             from app.google_calendar import create_event
             from datetime import datetime
-            
-            # Parse datetime strings
-            start_time = datetime.fromisoformat(args['start_time'].replace('Z', '+00:00'))
-            end_time = datetime.fromisoformat(args['end_time'].replace('Z', '+00:00'))
+            # Parse datetime strings robustly, allowing timezone offsets
+            def _parse_iso(dt_str: str):
+                if not dt_str:
+                    return None
+                # If Z present, convert to +00:00 for fromisoformat
+                try:
+                    return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+                except Exception:
+                    # Last-resort: try to parse without modifications
+                    return datetime.fromisoformat(dt_str)
+
+            start_time = _parse_iso(args.get('start_time'))
+            end_time = _parse_iso(args.get('end_time'))
             
             # Create the event
             event = create_event(
