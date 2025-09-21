@@ -262,3 +262,36 @@ Per domande o problemi:
 ---
 
 **⚠️ Importante**: Prima di andare in produzione, cambia tutte le chiavi segrete e configura un sistema di secret management appropriato!
+
+## Google Calendar (opzionale)
+
+Per collegare Google Calendar è necessario creare un OAuth Client nel
+Google Cloud Console e abilitare le Google Calendar API per il progetto.
+
+1. Vai su https://console.cloud.google.com/apis/credentials
+2. Crea un "OAuth 2.0 Client ID" (Application type: Web application)
+3. Aggiungi i Redirect URI usati dall'app, ad esempio:
+	 - https://yourdomain/auth/google/callback
+	 - https://yourdomain/auth/google/calendar/callback
+	 (quando sviluppi in locale usa `http://127.0.0.1:5000` con run_dev/run.py)
+4. Abilita l'API Google Calendar dal Library (https://console.cloud.google.com/apis/library)
+
+Imposta le variabili d'ambiente (esempio `.env`):
+
+```bash
+# Google OAuth
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+```
+
+Uso in-app:
+
+- Per login OAuth standard l'app richiede scope `openid email profile`.
+- Per collegare il Google Calendar (per es. creare eventi) visita
+	`/auth/google/calendar` mentre sei loggato: questo avvierà il flusso OAuth
+	richiedendo il permesso `https://www.googleapis.com/auth/calendar.events`.
+
+Note di sicurezza:
+- I token di accesso e refresh vengono memorizzati nel database nel modello
+	`User` (campi: `google_access_token`, `google_refresh_token`,
+	`google_token_expires_at`). Proteggi il DB e non esporre questi campi nei log.

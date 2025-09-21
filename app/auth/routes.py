@@ -250,3 +250,81 @@ def google_callback():
         current_app.logger.error(f'Google OAuth error: {str(e)}')
         flash('Errore durante l\'autenticazione con Google.', 'danger')
         return redirect(url_for('auth.login'))
+
+
+@bp.route('/google/calendar')
+@login_required
+def google_calendar_connect():
+    """Initiate Google OAuth flow requesting Calendar scopes to connect user's calendar."""
+    try:
+        google_client = oauth.google
+        # Request calendar scopes in addition to basic openid/email/profile
+        calendar_scope = 'openid email profile https://www.googleapis.com/auth/calendar.events'
+        redirect_uri = url_for('auth.google_calendar_callback', _external=True)
+        
+        # Debug logging
+        current_app.logger.info(f'Calendar OAuth redirect URI: {redirect_uri}')
+        current_app.logger.info(f'Calendar OAuth scope: {calendar_scope}')
+        
+        # Request offline access and explicit consent to ensure we get a refresh token
+        return google_client.authorize_redirect(
+            redirect_uri, 
+            scope=calendar_scope,
+            access_type='offline',
+            prompt='consent'
+        )
+    except AttributeError:
+        current_app.logger.warning('OAuth google provider not registered')
+        flash('Google OAuth non è configurato.', 'danger')
+        return redirect(url_for('main.dashboard'))
+
+
+@bp.route('/google/calendar/callback')
+@login_required
+def google_calendar_callback():
+    """Handle the callback for Google Calendar OAuth and save tokens on the user."""
+    try:
+        google_client = oauth.google
+    except AttributeError:
+        flash('Google OAuth non è configurato.', 'danger')
+        return redirect(url_for('main.dashboard'))
+
+    try:
+        token = google_client.authorize_access_token()
+        # token typically contains access_token, refresh_token, expires_at (or expires_in)
+        access_token = token.get('access_token')
+        refresh_token = token.get('refresh_token')
+        expires_at = token.get('expires_at') or None
+
+        # Persist tokens to the logged-in user
+        user = current_user
+        # Use session-aware id retrieval and re-query to avoid stale objects
+        try:
+            # Ensure we have a managed SQLAlchemy object
+            user = db.session.get(User, int(user.get_id()))
+        except Exception:
+            user = User.query.get(int(user.get_id()))
+
+        if access_token:
+            user.google_access_token = access_token
+        if refresh_token:
+            user.google_refresh_token = refresh_token
+        if expires_at:
+            from datetime import datetime
+            # Authlib may provide expires_at as epoch seconds
+            try:
+                user.google_token_expires_at = datetime.utcfromtimestamp(int(expires_at))
+            except Exception:
+                # If expires_at isn't an integer, skip
+                pass
+
+        user.google_calendar_connected = True
+        db.session.commit()
+
+        flash('Google Calendar collegato con successo!', 'success')
+        return redirect(url_for('main.dashboard'))
+
+    except Exception as e:
+        current_app.logger.error(f'Google Calendar OAuth error: {str(e)}')
+        flash('Errore durante il collegamento del Google Calendar.', 'danger')
+        return redirect(url_for('main.dashboard'))

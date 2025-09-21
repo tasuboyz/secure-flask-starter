@@ -1,76 +1,350 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Dashboard Utente</h3>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h5>Informazioni Account</h5>
-                        <table class="table table-borderless">
-                            <tr>
-                                <td><strong>Email:</strong></td>
-                                <td>{{ user.email }}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Stato:</strong></td>
-                                <td>
+<div class="dashboard-container">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <h1>Dashboard</h1>
+        <div class="subtitle">Benvenuto, {{ user.email }}</div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats">
+        <div class="stat-card">
+            <span class="stat-number" id="eventsCount">-</span>
+            <div class="stat-label">Eventi Oggi</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number" id="availableSlots">-</span>
+            <div class="stat-label">Slot Liberi</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number">
+                {% if user.google_calendar_connected %}1{% else %}0{% endif %}
+            </span>
+            <div class="stat-label">Servizi Collegati</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number">
+                {% if user.ai_assistant_enabled and user.openai_api_key %}1{% else %}0{% endif %}
+            </span>
+            <div class="stat-label">AI Attivo</div>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link active" id="overview-tab" data-bs-toggle="tab" href="#overview" role="tab">
+                <i class="fas fa-home me-2"></i>Panoramica
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="calendar-tab" data-bs-toggle="tab" href="#calendar" role="tab">
+                <i class="fas fa-calendar me-2"></i>Calendario
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="assistant-tab" data-bs-toggle="tab" href="#assistant" role="tab">
+                <i class="fas fa-robot me-2"></i>AI Assistant
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="settings-tab" data-bs-toggle="tab" href="#settings" role="tab">
+                <i class="fas fa-cog me-2"></i>Impostazioni
+            </a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="dashboardTabContent">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-user me-2"></i>Informazioni Account</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-sm-6"><strong>Email:</strong></div>
+                                <div class="col-sm-6">{{ user.email }}</div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-sm-6"><strong>Stato:</strong></div>
+                                <div class="col-sm-6">
                                     {% if user.is_active %}
-                                        <span class="badge bg-success">Attivo</span>
+                                        <span class="status-badge status-connected">Attivo</span>
                                     {% else %}
-                                        <span class="badge bg-danger">Disattivato</span>
+                                        <span class="status-badge status-inactive">Disattivato</span>
                                     {% endif %}
                                     {% if user.is_admin %}
-                                        <span class="badge bg-warning">Admin</span>
+                                        <span class="status-badge status-warning ms-2">Admin</span>
                                     {% endif %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><strong>Membro dal:</strong></td>
-                                <td>{{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else 'N/A' }}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Ultimo accesso:</strong></td>
-                                <td>{{ user.last_login_at.strftime('%d/%m/%Y %H:%M') if user.last_login_at else 'Primo accesso' }}</td>
-                            </tr>
-                            {% if user.last_login_ip %}
-                            <tr>
-                                <td><strong>IP ultimo accesso:</strong></td>
-                                <td>{{ user.last_login_ip }}</td>
-                            </tr>
-                            {% endif %}
-                        </table>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <h5>Sicurezza</h5>
-                        <div class="card">
-                            <div class="card-body">
-                                <h6 class="card-title">Password</h6>
-                                <p class="card-text">
-                                    {% if user.last_password_change_at %}
-                                        Ultima modifica: {{ user.last_password_change_at.strftime('%d/%m/%Y %H:%M') }}
-                                    {% else %}
-                                        Password impostata alla registrazione
-                                    {% endif %}
-                                </p>
-                                <a href="{{ url_for('auth.forgot_password') }}" class="btn btn-outline-primary btn-sm">Cambia Password</a>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-sm-6"><strong>Ultimo accesso:</strong></div>
+                                <div class="col-sm-6">
+                                    {{ user.last_login_at.strftime('%d/%m/%Y %H:%M') if user.last_login_at else 'Primo accesso' }}
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="card mt-3">
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Sicurezza</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-3">
+                                {% if user.last_password_change_at %}
+                                    Password modificata: {{ user.last_password_change_at.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    Password impostata alla registrazione
+                                {% endif %}
+                            </p>
+                            <a href="{{ url_for('auth.forgot_password') }}" class="btn btn-outline-primary btn-modern">
+                                Cambia Password
+                            </a>
+                            <div class="mt-3">
+                                <h6>Sicurezza Attiva:</h6>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <span class="badge bg-success">Argon2</span>
+                                    <span class="badge bg-success">CSRF</span>
+                                    <span class="badge bg-success">Rate Limiting</span>
+                                    <span class="badge bg-success">Sessioni Sicure</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar Tab -->
+        <div class="tab-pane fade" id="calendar" role="tabpanel">
+            {% if user.google_calendar_connected %}
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>I Tuoi Eventi</h5>
+                                <div class="d-flex gap-2 mt-2">
+                                    <button id="loadEvents" class="btn btn-primary btn-sm btn-modern">
+                                        <i class="fas fa-sync me-1"></i>Carica Eventi
+                                    </button>
+                                    <button id="checkAvailability" class="btn btn-info btn-sm btn-modern">
+                                        <i class="fas fa-clock me-1"></i>Verifica Disponibilità
+                                    </button>
+                                </div>
+                            </div>
                             <div class="card-body">
-                                <h6 class="card-title">🔒 Sicurezza Account</h6>
-                                <ul class="list-unstyled">
-                                    <li>✅ Password hash con Argon2</li>
-                                    <li>✅ Protezione CSRF attiva</li>
-                                    <li>✅ Rate limiting abilitato</li>
-                                    <li>✅ Sessioni sicure</li>
-                                </ul>
+                                <div id="eventsList" style="display: none;">
+                                    <div id="eventsContainer" class="events-list"></div>
+                                </div>
+                                <div id="eventsPlaceholder" class="text-center text-muted">
+                                    <i class="fas fa-calendar-plus fa-3x mb-3"></i>
+                                    <p>Clicca "Carica Eventi" per vedere i tuoi prossimi appuntamenti</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Azioni Rapide</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-success btn-modern" onclick="createQuickEvent()">
+                                        <i class="fas fa-plus me-2"></i>Evento Rapido
+                                    </button>
+                                    <button class="btn btn-warning btn-modern" onclick="findFreeTime()">
+                                        <i class="fas fa-search me-2"></i>Trova Tempo Libero
+                                    </button>
+                                    <button class="btn btn-info btn-modern" onclick="viewWeekly()">
+                                        <i class="fas fa-calendar-week me-2"></i>Vista Settimanale
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="dashboard-card">
+                    <div class="card-body text-center">
+                        <i class="fab fa-google fa-5x text-muted mb-4"></i>
+                        <h3>Collega Google Calendar</h3>
+                        <p class="text-muted mb-4">Connetti il tuo Google Calendar per iniziare a gestire i tuoi eventi</p>
+                        <a href="{{ url_for('auth.google_calendar_connect') }}" class="btn btn-primary btn-lg btn-modern">
+                            <i class="fab fa-google me-2"></i>Collega Google Calendar
+                        </a>
+                        
+                        <div class="mt-4">
+                            <h6>Funzionalità disponibili dopo la connessione:</h6>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check text-success me-2"></i>Visualizza eventi</li>
+                                        <li><i class="fas fa-check text-success me-2"></i>Crea appuntamenti</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check text-success me-2"></i>Trova slot liberi</li>
+                                        <li><i class="fas fa-check text-success me-2"></i>Assistente AI</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- AI Assistant Tab -->
+        <div class="tab-pane fade" id="assistant" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-robot me-2"></i>Chat Assistant</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="chat-container">
+                                <div id="chatMessages" class="chat-messages">
+                                    {% if user.ai_assistant_enabled and user.openai_api_key %}
+                                        <div class="chat-message bot">
+                                            <div class="message-bubble">
+                                                🤖 Ciao! Sono il tuo assistente AI per il calendario. Puoi chiedermi di:
+                                                <br>• Creare eventi: "Fissa meeting domani alle 10"
+                                                <br>• Controllare agenda: "Cosa ho oggi?"
+                                                <br>• Trovare tempo libero: "Quando sono libero questa settimana?"
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="chat-message bot">
+                                            <div class="message-bubble">
+                                                ⚠️ AI Assistant non configurato. 
+                                                <a href="{{ url_for('settings.ai_assistant') }}">Configura la tua API key</a> 
+                                                per utilizzare le funzionalità avanzate.
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="chat-input-group">
+                                    <input type="text" id="chatInput" class="form-control chat-input" 
+                                           placeholder="es. 'Fissa meeting con Mario domani alle 10'"
+                                           {% if not (user.ai_assistant_enabled and user.openai_api_key) %}disabled{% endif %}>
+                                    <button id="sendMessage" class="btn btn-primary btn-modern"
+                                            {% if not (user.ai_assistant_enabled and user.openai_api_key) %}disabled{% endif %}>
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Stato AI</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if user.ai_assistant_enabled and user.openai_api_key %}
+                                <div class="text-center">
+                                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                    <h6>AI Assistant Attivo</h6>
+                                    <p class="text-muted">Modello: {{ user.ai_model_preference }}</p>
+                                </div>
+                            {% elif user.ai_assistant_enabled %}
+                                <div class="text-center">
+                                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                                    <h6>API Key Mancante</h6>
+                                    <p class="text-muted">Configura la tua OpenAI API key</p>
+                                    <a href="{{ url_for('settings.ai_assistant') }}" class="btn btn-warning btn-modern">
+                                        Configura
+                                    </a>
+                                </div>
+                            {% else %}
+                                <div class="text-center">
+                                    <i class="fas fa-robot fa-3x text-muted mb-3"></i>
+                                    <h6>AI Non Attivo</h6>
+                                    <p class="text-muted">Abilita l'assistente AI per funzionalità avanzate</p>
+                                    <a href="{{ url_for('settings.ai_assistant') }}" class="btn btn-primary btn-modern">
+                                        Abilita AI
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="tab-pane fade" id="settings" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Configurazione</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-3">
+                                <a href="{{ url_for('settings.profile') }}" class="btn btn-outline-primary btn-modern">
+                                    <i class="fas fa-user me-2"></i>Profilo Utente
+                                </a>
+                                <a href="{{ url_for('settings.ai_assistant') }}" class="btn btn-outline-info btn-modern">
+                                    <i class="fas fa-robot me-2"></i>AI Assistant
+                                </a>
+                                <a href="{{ url_for('auth.forgot_password') }}" class="btn btn-outline-warning btn-modern">
+                                    <i class="fas fa-key me-2"></i>Cambia Password
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Stato Servizi</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Google Calendar</span>
+                                    {% if user.google_calendar_connected %}
+                                        <span class="status-badge status-connected">Collegato</span>
+                                    {% else %}
+                                        <span class="status-badge status-inactive">Non Collegato</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>AI Assistant</span>
+                                    {% if user.ai_assistant_enabled and user.openai_api_key %}
+                                        <span class="status-badge status-connected">Attivo</span>
+                                    {% elif user.ai_assistant_enabled %}
+                                        <span class="status-badge status-warning">Configurazione Incompleta</span>
+                                    {% else %}
+                                        <span class="status-badge status-inactive">Disattivato</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Sicurezza</span>
+                                    <span class="status-badge status-connected">Attiva</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -79,4 +353,410 @@
         </div>
     </div>
 </div>
+
+<script>
+// Dashboard functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tabs if Bootstrap tabs are available
+    if (typeof bootstrap !== 'undefined') {
+        const tabList = document.querySelectorAll('#dashboardTabs a');
+        tabList.forEach(tab => {
+            const tabTrigger = new bootstrap.Tab(tab);
+        });
+    }
+
+    // Load events functionality
+    const loadEventsBtn = document.getElementById('loadEvents');
+    if (loadEventsBtn) {
+        loadEventsBtn.addEventListener('click', async function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Caricamento...';
+            
+            try {
+                const response = await fetch('/calendar/events');
+                const data = await response.json();
+
+                // Server returns { events: [...] } on success or { error: '...' } on failure
+                if (data.events) {
+                    displayEvents(data.events);
+                    updateEventCount(Array.isArray(data.events) ? data.events.length : 0);
+                } else if (data.error) {
+                    throw new Error(data.error);
+                } else {
+                    throw new Error('Errore nel caricamento eventi');
+                }
+            } catch (error) {
+                console.error('Error loading events:', error);
+                alert('Errore nel caricamento degli eventi: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync me-1"></i>Carica Eventi';
+            }
+        });
+    }
+
+    // Check availability functionality
+    const checkAvailabilityBtn = document.getElementById('checkAvailability');
+    if (checkAvailabilityBtn) {
+        checkAvailabilityBtn.addEventListener('click', async function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Controllo...';
+            
+            try {
+                const response = await fetch('/calendar/availability');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateAvailableSlots(data.available_slots);
+                    alert(`Hai ${data.available_slots} slot liberi oggi!`);
+                } else {
+                    throw new Error(data.message || 'Errore nel controllo disponibilità');
+                }
+            } catch (error) {
+                console.error('Error checking availability:', error);
+                alert('Errore nel controllo disponibilità: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-clock me-1"></i>Verifica Disponibilità';
+            }
+        });
+    }
+
+    // Chat functionality
+    const chatInput = document.getElementById('chatInput');
+    const sendMessageBtn = document.getElementById('sendMessage');
+    
+    if (chatInput && sendMessageBtn) {
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        sendMessageBtn.addEventListener('click', sendMessage);
+    }
+});
+
+function displayEvents(events) {
+    const eventsContainer = document.getElementById('eventsContainer');
+    const eventsList = document.getElementById('eventsList');
+    const eventsPlaceholder = document.getElementById('eventsPlaceholder');
+    
+    if (!eventsContainer) return;
+    
+    eventsContainer.innerHTML = '';
+    
+    if (events.length === 0) {
+        eventsContainer.innerHTML = '<div class="text-muted">Nessun evento trovato</div>';
+    } else {
+        events.forEach(event => {
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'event-item';
+            
+            const startTime = new Date(event.start.dateTime || event.start.date);
+            const endTime = new Date(event.end.dateTime || event.end.date);
+            
+            eventDiv.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">${event.summary || 'Nessun titolo'}</h6>
+                        <small class="text-muted">
+                            ${startTime.toLocaleDateString('it-IT')} 
+                            ${event.start.dateTime ? startTime.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'}) : ''}
+                            ${event.end.dateTime ? ' - ' + endTime.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'}) : ''}
+                        </small>
+                    </div>
+                    <span class="badge bg-primary">Google</span>
+                </div>
+            `;
+            
+            eventsContainer.appendChild(eventDiv);
+        });
+    }
+    
+    if (eventsPlaceholder) eventsPlaceholder.style.display = 'none';
+    if (eventsList) eventsList.style.display = 'block';
+}
+
+function updateEventCount(count) {
+    const eventsCountEl = document.getElementById('eventsCount');
+    if (eventsCountEl) {
+        eventsCountEl.textContent = count;
+    }
+}
+
+function updateAvailableSlots(slots) {
+    const availableSlotsEl = document.getElementById('availableSlots');
+    if (availableSlotsEl) {
+        availableSlotsEl.textContent = slots;
+    }
+}
+
+async function sendMessage() {
+    const chatInput = document.getElementById('chatInput');
+    const chatMessages = document.getElementById('chatMessages');
+    
+    if (!chatInput || !chatMessages) return;
+    
+    const message = chatInput.value.trim();
+    if (!message) return;
+    
+    // Add user message to chat
+    addMessageToChat('user', message);
+    chatInput.value = '';
+    
+    try {
+        const response = await fetch('/ai/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: message })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            addMessageToChat('bot', data.response);
+        } else {
+            addMessageToChat('bot', 'Errore: ' + (data.message || 'Qualcosa è andato storto'));
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+        addMessageToChat('bot', 'Errore di connessione. Riprova più tardi.');
+    }
+}
+
+function addMessageToChat(sender, message) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}`;
+    
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'message-bubble';
+    bubbleDiv.innerHTML = message;
+    
+    messageDiv.appendChild(bubbleDiv);
+    chatMessages.appendChild(messageDiv);
+    
+    // Scroll to bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Quick action functions
+function createQuickEvent() {
+    const title = prompt('Titolo evento:');
+    if (!title) return;
+    
+    const datetime = prompt('Data e ora (es. 2024-01-15 14:30):');
+    if (!datetime) return;
+    
+    // Use AI assistant to create event
+    const message = `Crea evento "${title}" il ${datetime}`;
+    document.getElementById('chatInput').value = message;
+    sendMessage();
+}
+
+function findFreeTime() {
+    const message = "Quando sono libero oggi?";
+    document.getElementById('chatInput').value = message;
+    sendMessage();
+}
+
+function viewWeekly() {
+    const message = "Mostra la mia agenda per questa settimana";
+    document.getElementById('chatInput').value = message;
+    sendMessage();
+}
+</script>
+
+{% if user.google_calendar_connected %}
+<script>
+// Calendar JavaScript functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Load Events button
+    document.getElementById('loadEvents').addEventListener('click', function() {
+        fetch('/calendar/events', { credentials: 'same-origin' })
+            .then(response => {
+                const ct = response.headers.get('content-type') || '';
+                if (!ct.includes('application/json')) {
+                    throw new Error('Unexpected non-JSON response');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    alert('Errore: ' + data.error);
+                    return;
+                }
+
+                const container = document.getElementById('eventsContainer');
+                const eventsList = document.getElementById('eventsList');
+
+                const events = Array.isArray(data.events) ? data.events : [];
+                if (events.length > 0) {
+                    container.innerHTML = '';
+                    events.slice(0, 5).forEach(event => {
+                        const div = document.createElement('div');
+                        div.className = 'list-group-item';
+
+                        const start = event.start.dateTime || event.start.date;
+                        const startDate = new Date(start);
+
+                        div.innerHTML = `
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${event.summary || 'Senza titolo'}</h6>
+                                <small>${startDate.toLocaleString()}</small>
+                            </div>
+                            ${event.description ? `<p class="mb-1 text-muted">${event.description.substring(0, 100)}...</p>` : ''}
+                        `;
+                        container.appendChild(div);
+                    });
+                    eventsList.style.display = 'block';
+                } else {
+                    container.innerHTML = '<div class="text-muted">Nessun evento trovato</div>';
+                    eventsList.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Errore nel caricamento degli eventi');
+            });
+    });
+    
+    // Check Availability button  
+    document.getElementById('checkAvailability').addEventListener('click', function() {
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+        
+        const endTime = new Date(tomorrow);
+        endTime.setHours(17, 0, 0, 0);
+        
+        const url = `/calendar/availability?start=${tomorrow.toISOString()}&end=${endTime.toISOString()}&duration=30`;
+        
+        fetch(url, { credentials: 'same-origin' })
+            .then(response => {
+                const ct = response.headers.get('content-type') || '';
+                if (!ct.includes('application/json')) {
+                    throw new Error('Unexpected non-JSON response');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    alert('Errore: ' + data.error);
+                    return;
+                }
+                
+                const slots = data.available_slots || [];
+                if (slots.length > 0) {
+                    const slotsText = slots.slice(0, 3).map(slot => {
+                        const start = new Date(slot.start);
+                        return start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    }).join(', ');
+                    alert(`Slot disponibili domani (primi 3): ${slotsText}`);
+                } else {
+                    alert('Nessuno slot disponibile domani');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Errore nel controllo disponibilità');
+            });
+    });
+    
+    // Chat functionality
+    const chatMessages = document.getElementById('chatMessages');
+    const chatInput = document.getElementById('chatInput');
+    const sendButton = document.getElementById('sendMessage');
+    
+    function addMessage(message, isUser = false) {
+        const div = document.createElement('div');
+        div.className = `mb-2 ${isUser ? 'text-end' : ''}`;
+        div.innerHTML = `
+            <div class="d-inline-block p-2 rounded ${isUser ? 'bg-primary text-white' : 'bg-light'}">
+                ${message}
+            </div>
+        `;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+        
+        addMessage(message, true);
+        chatInput.value = '';
+        
+        fetch('/calendar/chat', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: message })
+        })
+        .then(response => {
+            const ct = response.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) {
+                throw new Error('Unexpected non-JSON response');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                addMessage('Errore: ' + data.error);
+            } else {
+                addMessage(data.message);
+                
+                // Show intent information if available
+                if (data.intent && data.intent.action !== 'error') {
+                    const intentInfo = `🎯 Azione rilevata: ${data.intent.action} (fiducia: ${Math.round(data.intent.confidence * 100)}%)`;
+                    addMessage(intentInfo);
+                }
+                
+                // Show calendar results if available
+                if (data.calendar_result) {
+                    if (data.calendar_result.events) {
+                        const eventCount = data.calendar_result.events.length;
+                        addMessage(`📅 Trovati ${eventCount} eventi per ${data.calendar_result.date}`);
+                    } else if (data.calendar_result.slots) {
+                        const slotCount = data.calendar_result.slots.length;
+                        addMessage(`🕐 Trovati ${slotCount} slot liberi di ${data.calendar_result.duration} minuti`);
+                    } else if (data.calendar_result.summary) {
+                        addMessage(`✅ Evento creato: ${data.calendar_result.summary}`);
+                    }
+                }
+                
+                // Show suggestions
+                if (data.suggestions) {
+                    data.suggestions.forEach(suggestion => {
+                        addMessage('💡 ' + suggestion);
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            addMessage('Errore nel invio del messaggio');
+        });
+    }
+    
+    sendButton.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

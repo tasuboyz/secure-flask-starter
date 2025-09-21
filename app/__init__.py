@@ -91,6 +91,21 @@ def create_app(config_name=None):
         limiter.init_app(app)
 
     csrf.init_app(app)
+
+    # Initialize Supabase client if configured
+    try:
+        # Only initialize Supabase if explicitly enabled in config. This
+        # prevents attempts to contact Supabase in environments where it's not
+        # used (for example CI, local dev without Supabase, or production
+        # deployments that don't require Supabase).
+        if app.config.get('SUPABASE_ENABLED'):
+            from app.supabase import init_supabase
+            init_supabase(app)
+        else:
+            app.logger.debug('Supabase disabled via SUPABASE_ENABLED flag')
+    except Exception:
+        # If anything goes wrong, don't prevent the app from starting
+        app.logger.debug('Supabase init skipped or failed')
     
     # Register user loader for Flask-Login
     @login_manager.user_loader
@@ -105,6 +120,14 @@ def create_app(config_name=None):
     # Register blueprints
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
+    
+    # Register calendar blueprint
+    from app.calendar import bp as calendar_bp
+    app.register_blueprint(calendar_bp, url_prefix='/calendar')
+    
+    # Register settings blueprint
+    from app.settings import settings_bp
+    app.register_blueprint(settings_bp)
     
     # Register main routes
     from app import routes

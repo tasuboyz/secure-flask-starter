@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- Settings Navigation -->
+            <div class="card">
+                <div class="card-header">
+                    <h5>Settings</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('settings.profile') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-user"></i> Profile
+                    </a>
+                    <a href="{{ url_for('settings.ai_assistant') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-robot"></i> AI Assistant
+                    </a>
+                    <a href="{{ url_for('main.dashboard') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-calendar"></i> Google Calendar
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-body">
+                    <h2>Settings Overview</h2>
+                    <p class="text-muted">Manage your account settings and preferences.</p>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title"><i class="fas fa-user"></i> Profile</h5>
+                                    <p class="card-text">Update your profile information.</p>
+                                    <a href="{{ url_for('settings.profile') }}" class="btn btn-primary">Manage Profile</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title"><i class="fas fa-robot"></i> AI Assistant</h5>
+                                    <p class="card-text">Configure your personal AI assistant.</p>
+                                    <a href="{{ url_for('settings.ai_assistant') }}" class="btn btn-primary">Configure AI</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title"><i class="fas fa-calendar"></i> Google Calendar</h5>
+                                    <p class="card-text">Manage your calendar integration.</p>
+                                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">Calendar Settings</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -22,6 +22,17 @@ class User(UserMixin, db.Model):
     
     # OAuth integration
     google_id = Column(String(255), unique=True, index=True, nullable=True)
+    # Google OAuth tokens for optional Google Calendar integration
+    google_access_token = Column(String(2048), nullable=True)
+    google_refresh_token = Column(String(2048), nullable=True)
+    google_token_expires_at = Column(DateTime, nullable=True)
+    # Whether the user has connected their Google Calendar
+    google_calendar_connected = Column(Boolean, default=False, nullable=False)
+    
+    # AI Assistant settings (per-user)
+    openai_api_key = Column(String(512), nullable=True)  # User's own OpenAI API key
+    ai_assistant_enabled = Column(Boolean, default=False, nullable=False)
+    ai_model_preference = Column(String(50), default='gpt-3.5-turbo', nullable=False)  # gpt-3.5-turbo, gpt-4, etc.
 
     def __repr__(self):
         return f'<User {self.email}>'

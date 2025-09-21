@@ -29,6 +29,13 @@ class Config:
     # Google OAuth
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+    # Supabase settings (optional)
+    SUPABASE_URL = os.environ.get('SUPABASE_URL')
+    SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+    # Toggle whether the app should initialize and use Supabase. This allows
+    # enabling Supabase functionality at runtime without requiring the
+    # environment variables to be set in all environments.
+    SUPABASE_ENABLED = os.environ.get('SUPABASE_ENABLED', 'false').lower() in ['true', '1', 'on']
 
 
 class DevelopmentConfig(Config):
