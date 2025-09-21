@@ -81,6 +81,10 @@ def ensure_valid_token(user):
     except KeyError as e:
         current_app.logger.error(f"Invalid token response for user {user.id}: {str(e)}")
         raise TokenRefreshError(f"Invalid token response: {str(e)}")
+    except Exception as e:
+        # Catch any other exception (including those raised by tests/mocks)
+        current_app.logger.error(f"Token refresh unexpected error for user {user.id}: {str(e)}")
+        raise TokenRefreshError(f"Failed to refresh token: {str(e)}")
 
 
 def make_calendar_request(user, method, endpoint, **kwargs):
@@ -274,3 +278,26 @@ def get_events_for_date(user, date):
     events = get_events(user, start_datetime, end_datetime)
     
     return events
+
+
+def delete_event(user, event_id):
+    """Delete an event from the user's primary calendar.
+
+    Returns True if deletion succeeded (204/200), False if not found or could
+    not be deleted. Raises TokenRefreshError on auth problems or requests
+    exceptions for other failures.
+    """
+    try:
+        resp = make_calendar_request(user, 'DELETE', f'calendars/primary/events/{event_id}')
+        # Google Calendar returns 204 No Content on success
+        if resp.status_code in (200, 204):
+            return True
+        # If not successful, try to raise for a clearer exception to be handled upstream
+        resp.raise_for_status()
+        return True
+    except TokenRefreshError:
+        # Propagate token refresh errors to callers
+        raise
+    except Exception:
+        # For other errors return False so callers can surface a 4xx/5xx message
+        return False

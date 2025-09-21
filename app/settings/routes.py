@@ -42,6 +42,11 @@ def ai_assistant():
         # Populate form with current values
         form.ai_assistant_enabled.data = current_user.ai_assistant_enabled
         form.ai_model_preference.data = current_user.ai_model_preference
+        # Populate language preference if available
+        try:
+            form.ai_language.data = current_user.ai_language_preference
+        except Exception:
+            form.ai_language.data = 'it'
         # Don't populate API key for security
     
     if form.validate_on_submit():
@@ -49,6 +54,7 @@ def ai_assistant():
             # Update user settings
             current_user.ai_assistant_enabled = form.ai_assistant_enabled.data
             current_user.ai_model_preference = form.ai_model_preference.data
+            current_user.ai_language_preference = form.ai_language.data
             
             # Only update API key if provided
             if form.openai_api_key.data and form.openai_api_key.data.strip():

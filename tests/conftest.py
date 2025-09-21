@@ -54,3 +54,10 @@ def user(app):
         db.session.add(user)
         db.session.commit()
         return user
+
+
+@pytest.fixture(name='db')
+def _db_fixture():
+    """Expose the SQLAlchemy db instance for tests expecting a `db` fixture."""
+    from app.extensions import db as _db
+    return _db

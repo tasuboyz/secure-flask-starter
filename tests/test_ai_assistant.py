@@ -1,5 +1,6 @@
 """Tests for AI Assistant service."""
 import pytest
+import json
 from unittest.mock import Mock, patch
 from datetime import datetime
 
@@ -15,25 +16,20 @@ class TestAIAssistantService:
         assert service.api_key == "test-key"
         assert service.model == "gpt-3.5-turbo"
     
-    @patch('app.ai_assistant.openai.OpenAI')
-    def test_parse_calendar_message_success(self, mock_openai):
+    @patch.object(AIAssistantService, '_create_chat_completion')
+    def test_parse_calendar_message_success(self, mock_create_completion):
         """Test successful message parsing."""
         # Mock OpenAI response
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = '''
-        {
-            "action": "create_event",
-            "title": "Team Meeting",
-            "start_time": "2025-09-22T14:00:00Z",
-            "duration_minutes": 60,
-            "confidence": 0.9
+        # Simulate the responses API dict that _extract_content can parse
+        mock_create_completion.return_value = {
+            'output_text': json.dumps({
+                'action': 'create_event',
+                'title': 'Team Meeting',
+                'start_time': '2025-09-22T14:00:00Z',
+                'duration_minutes': 60,
+                'confidence': 0.9
+            })
         }
-        '''
-        
-        mock_client = Mock()
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_openai.return_value = mock_client
         
         service = AIAssistantService("test-key")
         intent = service.parse_calendar_message("Schedule team meeting tomorrow at 2pm")
@@ -43,14 +39,12 @@ class TestAIAssistantService:
         assert intent.confidence == 0.9
         assert intent.duration_minutes == 60
     
-    @patch('app.ai_assistant.openai.OpenAI')
-    def test_parse_calendar_message_error(self, mock_openai):
+    @patch.object(AIAssistantService, '_create_chat_completion')
+    def test_parse_calendar_message_error(self, mock_create_completion):
         """Test error handling in message parsing."""
         # Mock OpenAI to raise an exception
-        mock_client = Mock()
-        mock_client.chat.completions.create.side_effect = Exception("API Error")
-        mock_openai.return_value = mock_client
-        
+        mock_create_completion.side_effect = Exception("API Error")
+
         service = AIAssistantService("test-key")
         intent = service.parse_calendar_message("Schedule meeting")
         

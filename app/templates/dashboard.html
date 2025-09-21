@@ -374,7 +374,11 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Caricamento...';
             
             try {
-                const response = await fetch('/calendar/events');
+                const response = await fetch('/calendar/events', { credentials: 'same-origin' });
+                const ct = response.headers.get('content-type') || '';
+                if (!ct.includes('application/json')) {
+                    throw new Error('Unexpected non-JSON response');
+                }
                 const data = await response.json();
 
                 // Server returns { events: [...] } on success or { error: '...' } on failure
@@ -405,7 +409,11 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Controllo...';
             
             try {
-                const response = await fetch('/calendar/availability');
+                const response = await fetch('/calendar/availability', { credentials: 'same-origin' });
+                const ct = response.headers.get('content-type') || '';
+                if (!ct.includes('application/json')) {
+                    throw new Error('Unexpected non-JSON response');
+                }
                 const data = await response.json();
                 
                 if (data.status === 'success') {
@@ -435,7 +443,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 sendMessage();
             }
         });
-        
+
         sendMessageBtn.addEventListener('click', sendMessage);
     }
 });
@@ -509,24 +517,100 @@ async function sendMessage() {
     chatInput.value = '';
     
     try {
-        const response = await fetch('/ai/chat', {
+        // Read CSRF token from meta tag (rendered by base.html)
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (csrfToken) {
+            // include both header name variants to maximize compatibility with different CSRF middlewares
+            headers['X-CSRFToken'] = csrfToken;
+            headers['X-CSRF-Token'] = csrfToken;
+        }
+
+        const response = await fetch('/calendar/chat', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            credentials: 'same-origin',
+            headers: headers,
             body: JSON.stringify({ message: message })
         });
-        
+
+        const ct = response.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+            // Attempt to read text for better error message (likely HTML error page)
+            const text = await response.text();
+            console.error('Non-JSON response from /calendar/chat:', text);
+            console.error('Content-Type header:', ct);
+            console.error('Response status:', response.status, response.statusText);
+            addMessageToChat('bot', `Errore dal server: risposta non valida (${ct || 'sconosciuto'}). Status: ${response.status}. Controlla i log.`);
+            return;
+        }
+
         const data = await response.json();
         
-        if (data.status === 'success') {
+        // Debug: log the full response to console for troubleshooting
+        console.log('Chat response received:', JSON.stringify(data, null, 2));
+        console.log('Response keys:', Object.keys(data));
+        console.log('Response type check - has message:', 'message' in data);
+        console.log('Response type check - has response:', 'response' in data);
+        console.log('Response type check - has error:', 'error' in data);
+
+        // Current backend returns { response: str, timestamp: str } or { error: str }
+        // Legacy frontend expected { message: str, intent: {...}, suggestions: [...], calendar_result: {...} }
+        if (data.error) {
+            console.log('Error response detected:', data.error);
+            addMessageToChat('bot', 'Errore: ' + data.error);
+        } else if (data.response) {
+            // NEW: Handle current backend format with 'response' field
+            console.log('Response field detected:', data.response);
             addMessageToChat('bot', data.response);
+        } else if (data.message) {
+            // LEGACY: Handle old format with 'message' field (if still used)
+            console.log('Legacy message field detected:', data.message);
+            addMessageToChat('bot', data.message);
+
+            // Show intent details if present (legacy format)
+            if (data.intent && data.intent.action) {
+                const intentText = `🎯 Azione rilevata: ${data.intent.action} (fiducia: ${Math.round((data.intent.confidence||0)*100)}%)`;
+                addMessageToChat('bot', intentText);
+            }
+
+            // Show calendar_result summary (legacy format)
+            if (data.calendar_result) {
+                if (data.calendar_result.events) {
+                    addMessageToChat('bot', `📅 Trovati ${data.calendar_result.events.length} eventi per ${data.calendar_result.date}`);
+                } else if (data.calendar_result.slots) {
+                    addMessageToChat('bot', `🕐 Trovati ${data.calendar_result.slots.length} slot liberi di ${data.calendar_result.duration} minuti`);
+                } else if (data.calendar_result.summary) {
+                    addMessageToChat('bot', `✅ Evento creato: ${data.calendar_result.summary}`);
+                }
+            }
+
+            // Suggestions (legacy format)
+            if (data.suggestions && Array.isArray(data.suggestions)) {
+                data.suggestions.forEach(s => addMessageToChat('bot', '💡 ' + s));
+            }
         } else {
-            addMessageToChat('bot', 'Errore: ' + (data.message || 'Qualcosa è andato storto'));
+            console.error('Unexpected response format - no message, response, or error field found');
+            console.error('Full response object:', data);
+            addMessageToChat('bot', 'Errore: risposta non valida dal server (formato sconosciuto)');
         }
     } catch (error) {
         console.error('Error sending message:', error);
-        addMessageToChat('bot', 'Errore di connessione. Riprova più tardi.');
+        console.error('Error type:', error.constructor.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        // Provide more detailed error messages based on error type
+        let errorMsg = 'Errore di connessione. Riprova più tardi.';
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            errorMsg = 'Errore di rete: impossibile raggiungere il server.';
+        } else if (error.name === 'SyntaxError') {
+            errorMsg = 'Errore: risposta del server non valida (JSON malformato).';
+        } else if (error.message) {
+            errorMsg = `Errore: ${error.message}`;
+        }
+        
+        addMessageToChat('bot', errorMsg);
     }
 }
 
@@ -672,90 +756,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     });
     
-    // Chat functionality
-    const chatMessages = document.getElementById('chatMessages');
-    const chatInput = document.getElementById('chatInput');
-    const sendButton = document.getElementById('sendMessage');
-    
-    function addMessage(message, isUser = false) {
-        const div = document.createElement('div');
-        div.className = `mb-2 ${isUser ? 'text-end' : ''}`;
-        div.innerHTML = `
-            <div class="d-inline-block p-2 rounded ${isUser ? 'bg-primary text-white' : 'bg-light'}">
-                ${message}
-            </div>
-        `;
-        chatMessages.appendChild(div);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-    
-    function sendMessage() {
-        const message = chatInput.value.trim();
-        if (!message) return;
-        
-        addMessage(message, true);
-        chatInput.value = '';
-        
-        fetch('/calendar/chat', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ message: message })
-        })
-        .then(response => {
-            const ct = response.headers.get('content-type') || '';
-            if (!ct.includes('application/json')) {
-                throw new Error('Unexpected non-JSON response');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                addMessage('Errore: ' + data.error);
-            } else {
-                addMessage(data.message);
-                
-                // Show intent information if available
-                if (data.intent && data.intent.action !== 'error') {
-                    const intentInfo = `🎯 Azione rilevata: ${data.intent.action} (fiducia: ${Math.round(data.intent.confidence * 100)}%)`;
-                    addMessage(intentInfo);
-                }
-                
-                // Show calendar results if available
-                if (data.calendar_result) {
-                    if (data.calendar_result.events) {
-                        const eventCount = data.calendar_result.events.length;
-                        addMessage(`📅 Trovati ${eventCount} eventi per ${data.calendar_result.date}`);
-                    } else if (data.calendar_result.slots) {
-                        const slotCount = data.calendar_result.slots.length;
-                        addMessage(`🕐 Trovati ${slotCount} slot liberi di ${data.calendar_result.duration} minuti`);
-                    } else if (data.calendar_result.summary) {
-                        addMessage(`✅ Evento creato: ${data.calendar_result.summary}`);
-                    }
-                }
-                
-                // Show suggestions
-                if (data.suggestions) {
-                    data.suggestions.forEach(suggestion => {
-                        addMessage('💡 ' + suggestion);
-                    });
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            addMessage('Errore nel invio del messaggio');
-        });
-    }
-    
-    sendButton.addEventListener('click', sendMessage);
-    chatInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            sendMessage();
-        }
-    });
+    // Note: chat is handled by the unified chat functions defined earlier in this template.
 });
 </script>
 {% endif %}

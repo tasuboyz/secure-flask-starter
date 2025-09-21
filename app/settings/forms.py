@@ -30,9 +30,23 @@ class AIAssistantSettingsForm(FlaskForm):
             ('gpt-3.5-turbo', 'GPT-3.5 Turbo (Faster, cheaper)'),
             ('gpt-4', 'GPT-4 (More capable, slower)'),
             ('gpt-4-turbo-preview', 'GPT-4 Turbo (Latest, balanced)'),
+            ('gpt-5', 'GPT-5 (Experimental, highly capable)')
         ],
         default='gpt-3.5-turbo',
         description='Choose the AI model to use'
+    )
+
+    ai_language = SelectField(
+        'Assistant Language',
+        choices=[
+            ('it', 'Italiano'),
+            ('en', 'English'),
+            ('es', 'Español'),
+            ('fr', 'Français'),
+            ('de', 'Deutsch')
+        ],
+        default='it',
+        description='Language for assistant responses'
     )
     
     submit = SubmitField('Save Settings')

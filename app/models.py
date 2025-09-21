@@ -33,6 +33,7 @@ class User(UserMixin, db.Model):
     openai_api_key = Column(String(512), nullable=True)  # User's own OpenAI API key
     ai_assistant_enabled = Column(Boolean, default=False, nullable=False)
     ai_model_preference = Column(String(50), default='gpt-3.5-turbo', nullable=False)  # gpt-3.5-turbo, gpt-4, etc.
+    ai_language_preference = Column(String(20), default='it', nullable=False)  # 'it', 'en', etc.
 
     def __repr__(self):
         return f'<User {self.email}>'

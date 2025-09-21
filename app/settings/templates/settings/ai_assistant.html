@@ -90,6 +90,14 @@
                                 <div class="form-text">{{ form.ai_model_preference.description }}</div>
                             {% endif %}
                         </div>
+
+                        <div class="mb-3">
+                            {{ form.ai_language.label(class="form-label") }}
+                            {{ form.ai_language(class="form-select") }}
+                            {% if form.ai_language.description %}
+                                <div class="form-text">{{ form.ai_language.description }}</div>
+                            {% endif %}
+                        </div>
                         
                         <div class="card bg-light mb-3">
                             <div class="card-body">
