@@ -205,11 +205,9 @@ def test_login_flow():
 
 ```
 
-## Key Code Patterns## Key Code Patterns
+## Key Code Patterns
 
-
-
-### User Model (app/models.py)### User Model (app/models.py)
+### User Model (app/models.py)
 
 ```python
 from datetime import datetime
