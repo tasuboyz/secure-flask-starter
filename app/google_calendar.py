@@ -36,119 +36,42 @@ class CalendarPermissionError(Exception):
 
 
 def ensure_valid_token(user):
-    """Ensure user has a valid Google access token, refreshing if necessary.
-    
-    Args:
-        user: User model instance with google_access_token, google_refresh_token, 
-              and google_token_expires_at fields
-              
-    Returns:
-        str: Valid access token
-        
-    Raises:
-        TokenRefreshError: If token refresh fails or no refresh token available
+    """Ensure user has a valid Google access token, delegating to TokenManager.
+
+    Kept for backward compatibility; now uses app.services.google_token.TokenManager.
     """
-    # Check if token is expired (with 5-minute buffer)
-    now = datetime.utcnow()
-    buffer = timedelta(minutes=5)
-    
-    if user.google_token_expires_at and user.google_token_expires_at > (now + buffer):
-        # Token is still valid
-        return user.google_access_token
-    
-    # Token is expired or missing, need to refresh
-    if not user.google_refresh_token:
-        raise TokenRefreshError("No refresh token available")
-    
-    current_app.logger.info(f"Refreshing Google token for user {user.id}")
-    
-    # Call Google's token endpoint to refresh
-    token_url = "https://oauth2.googleapis.com/token"
-    data = {
-        'client_id': current_app.config.get('GOOGLE_CLIENT_ID'),
-        'client_secret': current_app.config.get('GOOGLE_CLIENT_SECRET'),
-        'refresh_token': user.google_refresh_token,
-        'grant_type': 'refresh_token'
-    }
-    
+    # Lazy import to avoid circulars and keep old import path stable in tests
     try:
-        response = requests.post(token_url, data=data, timeout=10)
-        response.raise_for_status()
-        token_data = response.json()
-        
-        # Update user's tokens
-        user.google_access_token = token_data['access_token']
-        
-        # Calculate expiry (expires_in is in seconds)
-        expires_in = token_data.get('expires_in', 3600)
-        user.google_token_expires_at = now + timedelta(seconds=expires_in)
-        
-        # Google may return a new refresh token
-        if 'refresh_token' in token_data:
-            user.google_refresh_token = token_data['refresh_token']
-        
-        db.session.commit()
-        current_app.logger.info(f"Successfully refreshed token for user {user.id}")
-        
-        return user.google_access_token
-        
-    except requests.RequestException as e:
-        current_app.logger.error(f"Token refresh failed for user {user.id}: {str(e)}")
-        raise TokenRefreshError(f"Failed to refresh token: {str(e)}")
-    except KeyError as e:
-        current_app.logger.error(f"Invalid token response for user {user.id}: {str(e)}")
-        raise TokenRefreshError(f"Invalid token response: {str(e)}")
-    except Exception as e:
-        # Catch any other exception (including those raised by tests/mocks)
-        current_app.logger.error(f"Token refresh unexpected error for user {user.id}: {str(e)}")
-        raise TokenRefreshError(f"Failed to refresh token: {str(e)}")
+        from app.services.google_token import TokenManager, TokenRefreshError as _SvcTokenRefreshError
+    except Exception:
+        # If the service layer is unavailable, re-raise using local error type
+        raise TokenRefreshError("Token service not available")
+
+    try:
+        manager = TokenManager(user)
+        return manager.ensure_valid_token()
+    except _SvcTokenRefreshError as e:
+        # Normalize to this module's TokenRefreshError to avoid breaking callers/tests
+        raise TokenRefreshError(str(e))
 
 
 def make_calendar_request(user, method, endpoint, **kwargs):
     """Make an authenticated request to Google Calendar API.
-    
-    Args:
-        user: User model instance
-        method: HTTP method ('GET', 'POST', etc.)
-        endpoint: Calendar API endpoint (e.g., 'calendars/primary/events')
-        **kwargs: Additional arguments passed to requests
-        
-    Returns:
-        requests.Response: API response
-        
-    Raises:
-        TokenRefreshError: If token refresh fails
+
+    Backward-compatible facade that now uses GoogleCalendarClient.
     """
-    access_token = ensure_valid_token(user)
-    
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-        'Content-Type': 'application/json'
-    }
-    
-    if 'headers' in kwargs:
-        headers.update(kwargs['headers'])
-    kwargs['headers'] = headers
-    
-    url = f"https://www.googleapis.com/calendar/v3/{endpoint}"
-    
-    resp = requests.request(method, url, timeout=30, **kwargs)
-    # If Google returns 403 due to insufficient scopes, raise a specific error
     try:
-        if resp.status_code == 403:
-            # Look for ACCESS_TOKEN_SCOPE_INSUFFICIENT hint in body
-            try:
-                body = resp.json()
-            except Exception:
-                body = resp.text
-            # Raise a CalendarPermissionError so callers can react (reauthorize)
-            from app.google_calendar import CalendarPermissionError
-            current_app.logger.debug('Google Calendar permission error: %s', body)
-            raise CalendarPermissionError('ACCESS_TOKEN_SCOPE_INSUFFICIENT', body=body)
-    except CalendarPermissionError:
-        # Re-raise to be handled upstream
+        from app.services.google_client import GoogleCalendarClient, CalendarPermissionError as _SvcPermissionError
+    except Exception:
+        # Hard failure if client layer is missing
         raise
-    return resp
+
+    client = GoogleCalendarClient(user)
+    try:
+        return client.request(method, endpoint, **kwargs)
+    except _SvcPermissionError as e:
+        # Re-wrap to this module's CalendarPermissionError to keep imports stable
+        raise CalendarPermissionError(str(e), body=getattr(e, 'body', None))
 
 
 def get_primary_calendar_timezone(user) -> dict:

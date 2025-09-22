@@ -1,23 +1,24 @@
 # AI Agent Instructions - Calendar AI Dashboard
 
-This project implements a **Calendar AI Dashboard** that integrates Google Calendar with an OpenAI-powered assistant. These instructions help AI coding agents understand the project's architecture, current state, and how to implement the major UI redesign from a tabbed dashboard to a modern Calendar AI interface.
+This project implements a **Calendar AI Dashboard** that integrates Google Calendar with an OpenAI-powered assistant. These instructions help AI coding agents understand the project's architecture, current state, and implementation priorities.
 
 ## Project Overview
 
-The application is transitioning from a basic authentication starter to a comprehensive **Calendar AI Dashboard** with:
-- **Google Calendar Integration**: OAuth connection, event management, timezone detection
+A comprehensive **Calendar AI Dashboard** with:
+- **Google Calendar Integration**: OAuth connection with maximum permissions, event management, timezone detection
 - **AI Assistant**: OpenAI Responses API with tool-calling for calendar actions
-- **Modern UI**: Sidebar navigation + calendar grid + AI chat panel
-- **Robust Backend**: Calendar API endpoints, permission error handling, reauthorization flow
+- **Modern UI**: Three-column layout (sidebar + calendar grid + AI panel) replacing tabbed interface
+- **Robust Backend**: Calendar API endpoints, comprehensive permission error handling, reauthorization flow
+- **Security**: Production-ready authentication, password hashing, CSRF protection, rate limiting
 
 ## Tech Stack
 
 - **Backend**: Python 3.11+ with Flask (application factory pattern)
 - **Database**: SQLAlchemy with Flask-SQLAlchemy ORM, Alembic migrations
-- **Authentication**: Flask-Login + Google OAuth via Authlib (not Flask-Dance)
+- **Authentication**: Flask-Login + Google OAuth via Authlib with full calendar scope
 - **Security**: Argon2 password hashing, Flask-WTF CSRF protection, flask-limiter rate limiting
 - **Email**: Flask-Mail for password reset functionality
-- **Calendar**: Google Calendar API v3 with timezone detection and permission error handling
+- **Calendar**: Google Calendar API v3 with comprehensive permission management and error handling
 - **AI**: OpenAI Responses API with tool-calling for calendar event creation
 - **Testing**: pytest with application/database fixtures, Google OAuth mocking
 
@@ -244,16 +245,24 @@ document.querySelectorAll('#dashboardTabs a');
 
 ## Google Calendar Integration Status
 
-### Implemented Features:
-- **OAuth Connection**: `app/auth/routes.py` - `google_calendar_connect()`
-- **Reauthorization**: `app/auth/routes.py` - `google_calendar_reauthorize()` (force consent for scope issues)
-- **Token Management**: `app/google_calendar.py` - `ensure_valid_token()` with refresh
-- **Timezone Detection**: `app/google_calendar.py` - `get_primary_calendar_timezone()` with fallback
-- **Event CRUD**: `app/google_calendar.py` - `create_event()`, `get_events()`, `delete_event()`
-- **Availability**: `app/google_calendar.py` - `find_available_slots()`
+### ✅ IMPLEMENTED & WORKING
+- **OAuth Connection**: Maximum permission scope (`https://www.googleapis.com/auth/calendar`) by default
+- **Permission Management**: User preference persistence in `User.google_permission_mode` field
+- **Reauthorization Flow**: Forced consent with token revocation for scope upgrades
+- **Token Management**: Automatic refresh with comprehensive error handling
+- **Simplified API Calls**: Eliminated problematic `calendars/primary` requests that required extra permissions
+- **Error Detection**: `ACCESS_TOKEN_SCOPE_INSUFFICIENT` detection with structured responses
+- **UI Integration**: Permission dropdown reflecting saved preferences, reauthorization banners
+
+### Core Functions Available:
+- `ensure_valid_token(user)` - Token validation and refresh with scope error detection
+- `create_event(user, event_data)` - Event creation with timezone awareness
+- `get_events(user, start_date, end_date)` - Event retrieval with error handling
+- `find_available_slots(user, start_date, end_date, duration)` - Availability search
+- `get_primary_calendar_timezone(user)` - Timezone detection with UTC fallback
 
 ### Permission Error Handling:
-The backend detects `ACCESS_TOKEN_SCOPE_INSUFFICIENT` errors and can return:
+Backend automatically detects permission issues and returns:
 ```json
 {
   "error": "Calendar permissions required",
@@ -262,22 +271,24 @@ The backend detects `ACCESS_TOKEN_SCOPE_INSUFFICIENT` errors and can return:
 }
 ```
 
-The UI should detect this and show a "Reauthorize Google Calendar" button.
+UI displays reauthorization banner with one-click fix when this error is detected.
 
 ## AI Assistant Integration Status
 
-### Implemented Features:
-- **OpenAI Integration**: `app/ai_assistant.py` - `AIAssistantService` with Responses API
-- **Tool Calling**: Calendar event creation via function calls
-- **User Preferences**: Model selection (GPT-4, GPT-4o-mini), language preference
-- **Chat Endpoint**: `app/calendar/__init__.py` - `POST /calendar/chat`
+### ✅ IMPLEMENTED & WORKING
+- **OpenAI Integration**: `app/ai_assistant.py` with Responses API and tool-calling
+- **Calendar Tool Integration**: Direct event creation via AI function calls
+- **User Preferences**: Model selection (GPT-4, GPT-4o-mini), language preference storage
+- **Chat Endpoint**: `app/calendar/__init__.py` - `POST /calendar/chat` with full error handling
 - **Timezone Awareness**: AI uses detected calendar timezone in prompts
+- **Permission Error Propagation**: AI gracefully handles calendar permission errors
 
 ### AI Chat Flow:
 1. User sends message → `POST /calendar/chat`
 2. Backend processes with `ai_service.process_chat(message, user)`
-3. AI may call tools (e.g., `create_calendar_event`)
-4. Returns structured response with event details
+3. AI may call tools (e.g., `create_calendar_event`) 
+4. Calendar permission errors are caught and returned as structured responses
+5. UI can detect errors and trigger reauthorization flow
 
 ## Development Workflow for UI Redesign
 
@@ -558,6 +569,7 @@ class User(db.Model):
     google_refresh_token = Column(String(512))
     google_token_expires_at = Column(DateTime)
     google_calendar_connected = Column(Boolean, default=False, nullable=False)
+    google_permission_mode = Column(String(20), default='events', nullable=False)  # NEW: tracks user permission choice
     
     # AI Assistant settings
     ai_assistant_enabled = Column(Boolean, default=False, nullable=False)
@@ -663,3 +675,76 @@ Generate secrets with: `python -c "import secrets; print(secrets.token_hex(32))"
 - **Responsive Design**: Mobile-friendly three-column layout
 
 This architecture provides a production-ready Calendar AI dashboard with robust security, comprehensive testing, and modern UI patterns.
+
+## CURRENT STATUS & NEXT OBJECTIVES
+
+### ✅ COMPLETED FEATURES
+- **UI Redesign**: Three-column dashboard layout implemented (sidebar + calendar grid + AI panel)
+- **Google Calendar Permission Management**: 
+  - Full scope reauthorization flow (`https://www.googleapis.com/auth/calendar`)
+  - User permission preference persistence (`User.google_permission_mode`)
+  - Permission dropdown in UI with "Accesso completo calendar" option
+  - Token revocation before reauthorization to force consent screen
+- **Error Handling**: Calendar permission errors detected and reauthorization banner shown
+- **AI Assistant Integration**: Tool-calling with structured error responses for permission issues
+- **Database Schema**: Migration for `google_permission_mode` column
+
+### 🎯 PRIORITY OBJECTIVE: Code Modularization & Architecture Cleanup
+
+**Goal**: Separate responsibilities and improve testability by extracting Google Calendar integration into modular services.
+
+**Why**: Current monolithic structure in `app/google_calendar.py` and `app/ai_assistant.py` mixes token management, HTTP client logic, domain business rules, and error handling. This makes testing difficult and coupling high.
+
+**Target Architecture**:
+```
+app/services/
+├── google_token.py        # TokenManager: refresh/revoke/ensure_valid_token
+├── google_client.py       # GoogleCalendarClient: HTTP wrapper with auth
+├── calendar_service.py    # CalendarService: business logic (get_events, create_event, find_slots)
+├── ai_service.py         # AIService: OpenAI orchestration with tool calling
+└── auth_service.py       # AuthService: connect/reauthorize/disconnect flows
+```
+
+**Acceptance Criteria**:
+- [ ] `TokenManager` extracted with unit tests (mock `requests.post`)
+- [ ] `GoogleCalendarClient` extracted with 200/403 scenario tests
+- [ ] `CalendarService` implements domain logic using TokenManager + GoogleClient
+- [ ] Existing endpoints maintain same JSON contracts (backward compatibility)
+- [ ] Unit test coverage >80% for new service modules
+- [ ] No regression in `/calendar/events`, `/calendar/chat`, reauthorization flows
+
+**Migration Plan** (Incremental):
+1. **Phase 1**: Extract `TokenManager` (3-6h)
+   - Create `app/services/google_token.py`
+   - Move `ensure_valid_token`, token refresh logic
+   - Add unit tests with mocked HTTP calls
+   - Update `app/google_calendar.py` to use TokenManager
+
+2. **Phase 2**: Extract `GoogleCalendarClient` (3-6h)
+   - Create `app/services/google_client.py` 
+   - Move `make_calendar_request` logic
+   - Handle 403 `ACCESS_TOKEN_SCOPE_INSUFFICIENT` detection
+   - Add tests for HTTP scenarios
+
+3. **Phase 3**: Extract `CalendarService` (1-2 days)
+   - Create `app/services/calendar_service.py`
+   - Move domain logic: `get_events`, `create_event`, `find_available_slots`
+   - Update blueprint routes to use CalendarService
+   - Maintain timezone handling and error propagation
+
+4. **Phase 4**: Extract `AuthService` & cleanup (1-2 days)
+   - Move connect/reauthorize/disconnect orchestration
+   - Final cleanup of legacy code
+   - Documentation and integration tests
+
+### 📋 IMMEDIATE TASKS
+- [ ] Implement PoC: `TokenManager` extraction
+- [ ] Add unit tests for token refresh scenarios
+- [ ] Verify backward compatibility with existing endpoints
+- [ ] Create PR template for incremental refactoring
+
+### 🔧 TECHNICAL DEBT TO ADDRESS
+- Remove unused imports and dead code after modularization
+- Add retry logic and circuit breaker for Google API calls
+- Implement proper logging and monitoring for service modules
+- Add integration tests with `requests-mock` for full flow coverage
