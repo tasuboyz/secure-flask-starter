@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from flask import current_app, url_for
 from dataclasses import dataclass
 from app.google_calendar import get_primary_calendar_timezone
+from app.services.calendar_service import CalendarService
 
 logger = logging.getLogger(__name__)
 
@@ -492,10 +493,7 @@ class AIAssistantService:
     def _execute_create_event(self, args: dict, user) -> dict:
         """Execute create_calendar_event tool."""
         try:
-            from app.google_calendar import create_event
-            from datetime import datetime
-            from app.google_calendar import get_primary_calendar_timezone, _tzinfo_from_name
-            from datetime import timezone
+            from datetime import datetime, timezone
             # Parse datetime strings robustly, allowing timezone offsets
             def _parse_iso(dt_str: str):
                 if not dt_str:
@@ -515,6 +513,7 @@ class AIAssistantService:
                 except Exception:
                     cal_tz_name = 'UTC'
 
+                from app.google_calendar import _tzinfo_from_name
                 tz = _tzinfo_from_name(cal_tz_name)
                 try:
                     naive = datetime.fromisoformat(dt_str)
@@ -527,16 +526,10 @@ class AIAssistantService:
 
             start_time = _parse_iso(args.get('start_time'))
             end_time = _parse_iso(args.get('end_time'))
-            
-            # Create the event
-            event = create_event(
-                user=user,
-                start_time=start_time,
-                end_time=end_time,
-                title=args['title'],
-                description=args.get('description', ''),
-                attendees=args.get('attendees', [])
-            )
+
+            # Create the event via CalendarService
+            svc = CalendarService(user)
+            event = svc.create_event(start_time, end_time, args['title'], args.get('description', ''), args.get('attendees', []))
             
             return {
                 "success": True,
@@ -547,19 +540,21 @@ class AIAssistantService:
                 "html_link": event.get('htmlLink')
             }
         except Exception as e:
+            # Propagate calendar permission errors up so the caller can trigger reauthorization
+            if e.__class__.__name__ == 'CalendarPermissionError' or 'ACCESS_TOKEN_SCOPE_INSUFFICIENT' in str(e):
+                raise
             return {"success": False, "error": str(e)}
 
     def _execute_find_slots(self, args: dict, user) -> dict:
         """Execute find_free_slots tool."""
         try:
-            from app.google_calendar import find_available_slots
             from datetime import datetime
-            
             start_date = datetime.fromisoformat(args['start_date']).replace(hour=9, minute=0)
             end_date = datetime.fromisoformat(args['end_date']).replace(hour=17, minute=0)
             duration = args.get('duration_minutes', 60)
-            
-            slots = find_available_slots(user, start_date, end_date, duration)
+
+            svc = CalendarService(user)
+            slots = svc.find_available_slots(start_date, end_date, duration)
             
             return {
                 "success": True,
@@ -573,23 +568,26 @@ class AIAssistantService:
                 "total_found": len(slots)
             }
         except Exception as e:
+            if e.__class__.__name__ == 'CalendarPermissionError' or 'ACCESS_TOKEN_SCOPE_INSUFFICIENT' in str(e):
+                raise
             return {"success": False, "error": str(e)}
 
     def _execute_get_events(self, args: dict, user) -> dict:
         """Execute get_calendar_events tool."""
         try:
-            from app.google_calendar import get_events_for_date, get_events
             from datetime import datetime
-            
+            svc = CalendarService(user)
             if 'date' in args:
-                # Single date
+                # Single date -> fetch events for that day
                 date_obj = datetime.fromisoformat(args['date']).date()
-                events = get_events_for_date(user, date_obj)
+                start_dt = datetime.combine(date_obj, datetime.min.time())
+                end_dt = datetime.combine(date_obj, datetime.max.time())
+                events = svc.get_events(start_dt, end_dt, max_results=250)
             else:
                 # Date range
                 start_time = datetime.fromisoformat(args.get('start_date', ''))
                 end_time = datetime.fromisoformat(args.get('end_date', ''))
-                events = get_events(user, start_time, end_time)
+                events = svc.get_events(start_time, end_time)
             
             return {
                 "success": True,
@@ -606,6 +604,8 @@ class AIAssistantService:
                 "total_found": len(events)
             }
         except Exception as e:
+            if e.__class__.__name__ == 'CalendarPermissionError' or 'ACCESS_TOKEN_SCOPE_INSUFFICIENT' in str(e):
+                raise
             return {"success": False, "error": str(e)}
 
     def _create_chat_completion(self, **kwargs):

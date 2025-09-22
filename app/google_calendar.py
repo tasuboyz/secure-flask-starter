@@ -197,18 +197,24 @@ def get_events(user, start_time=None, end_time=None, max_results=10):
     if not end_time:
         end_time = start_time + timedelta(days=7)
 
-    params = {
-        'timeMin': _to_rfc3339_z(start_time),
-        'timeMax': _to_rfc3339_z(end_time),
-        'maxResults': max_results,
-        'singleEvents': True,
-        'orderBy': 'startTime'
-    }
-    
-    response = make_calendar_request(user, 'GET', 'calendars/primary/events', params=params)
-    response.raise_for_status()
-    
-    return response.json().get('items', [])
+    # Delegate to CalendarService for domain logic
+    try:
+        from app.services.calendar_service import CalendarService
+    except Exception:
+        # Fallback to original implementation if service not present
+        params = {
+            'timeMin': _to_rfc3339_z(start_time),
+            'timeMax': _to_rfc3339_z(end_time),
+            'maxResults': max_results,
+            'singleEvents': True,
+            'orderBy': 'startTime'
+        }
+        response = make_calendar_request(user, 'GET', 'calendars/primary/events', params=params)
+        response.raise_for_status()
+        return response.json().get('items', [])
+
+    svc = CalendarService(user)
+    return svc.get_events(start_time, end_time, max_results)
 
 
 def find_available_slots(user, start_date, end_date, duration_minutes=30, working_hours=(9, 17)):
@@ -224,51 +230,42 @@ def find_available_slots(user, start_date, end_date, duration_minutes=30, workin
     Returns:
         list: List of available slots as {'start': datetime, 'end': datetime}
     """
-    # Get existing events
-    events = get_events(user, start_date, end_date)
-    
-    # Extract busy periods
-    busy_periods = []
-    for event in events:
-        start = event.get('start', {})
-        end = event.get('end', {})
-        
-        if 'dateTime' in start and 'dateTime' in end:
-            start_dt = datetime.fromisoformat(start['dateTime'].replace('Z', '+00:00'))
-            end_dt = datetime.fromisoformat(end['dateTime'].replace('Z', '+00:00'))
-            busy_periods.append((start_dt, end_dt))
-    
-    # Find free slots
-    available_slots = []
-    current_time = start_date.replace(hour=working_hours[0], minute=0, second=0, microsecond=0)
-    end_of_search = end_date.replace(hour=working_hours[1], minute=0, second=0, microsecond=0)
-    
-    slot_duration = timedelta(minutes=duration_minutes)
-    
-    while current_time + slot_duration <= end_of_search:
-        # Check if this slot conflicts with any busy period
-        slot_end = current_time + slot_duration
-        
-        is_free = True
-        for busy_start, busy_end in busy_periods:
-            if (current_time < busy_end and slot_end > busy_start):
-                is_free = False
-                break
-        
-        if is_free:
-            available_slots.append({
-                'start': current_time,
-                'end': slot_end
-            })
-        
-        # Move to next 30-minute slot
-        current_time += timedelta(minutes=30)
-        
-        # Skip to next day if we're past working hours
-        if current_time.hour >= working_hours[1]:
-            current_time = current_time.replace(hour=working_hours[0], minute=0) + timedelta(days=1)
-    
-    return available_slots
+    try:
+        from app.services.calendar_service import CalendarService
+    except Exception:
+        # Fall back to old implementation if service missing
+        events = get_events(user, start_date, end_date)
+        busy_periods = []
+        for event in events:
+            start = event.get('start', {})
+            end = event.get('end', {})
+            if 'dateTime' in start and 'dateTime' in end:
+                start_dt = datetime.fromisoformat(start['dateTime'].replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end['dateTime'].replace('Z', '+00:00'))
+                busy_periods.append((start_dt, end_dt))
+
+        available_slots = []
+        current_time = start_date.replace(hour=working_hours[0], minute=0, second=0, microsecond=0)
+        end_of_search = end_date.replace(hour=working_hours[1], minute=0, second=0, microsecond=0)
+        slot_duration = timedelta(minutes=duration_minutes)
+
+        while current_time + slot_duration <= end_of_search:
+            slot_end = current_time + slot_duration
+            is_free = True
+            for busy_start, busy_end in busy_periods:
+                if (current_time < busy_end and slot_end > busy_start):
+                    is_free = False
+                    break
+            if is_free:
+                available_slots.append({'start': current_time, 'end': slot_end})
+            current_time += timedelta(minutes=30)
+            if current_time.hour >= working_hours[1]:
+                current_time = current_time.replace(hour=working_hours[0], minute=0) + timedelta(days=1)
+
+        return available_slots
+
+    svc = CalendarService(user)
+    return svc.find_available_slots(start_date, end_date, duration_minutes, working_hours)
 
 
 def create_event(user, start_time, end_time, title, description="", attendees=None):
@@ -325,13 +322,17 @@ def create_event(user, start_time, end_time, title, description="", attendees=No
     if attendees:
         event_data['attendees'] = [{'email': email} for email in attendees]
     
-    response = make_calendar_request(
-        user, 'POST', 'calendars/primary/events', 
-        json=event_data
-    )
-    response.raise_for_status()
-    
-    return response.json()
+    try:
+        from app.services.calendar_service import CalendarService
+    except Exception:
+        response = make_calendar_request(
+            user, 'POST', 'calendars/primary/events', json=event_data
+        )
+        response.raise_for_status()
+        return response.json()
+
+    svc = CalendarService(user)
+    return svc.create_event(start_time, end_time, title, description, attendees)
 
 
 def get_events_for_date(user, date):
