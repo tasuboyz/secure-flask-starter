@@ -28,6 +28,9 @@ class User(UserMixin, db.Model):
     google_token_expires_at = Column(DateTime, nullable=True)
     # Whether the user has connected their Google Calendar
     google_calendar_connected = Column(Boolean, default=False, nullable=False)
+    # User-selected permission mode for Google Calendar connections
+    # Allowed values: 'readonly', 'events', 'full'
+    google_permission_mode = Column(String(20), default='events', nullable=False)
     
     # AI Assistant settings (per-user)
     openai_api_key = Column(String(512), nullable=True)  # User's own OpenAI API key

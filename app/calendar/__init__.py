@@ -2,24 +2,21 @@
 
 import logging
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, url_for
 
 from flask_login import login_required, current_user
 
 from app.google_calendar import (
-
-    get_events_for_date, 
-
-    create_event, 
-
+    get_events_for_date,
+    create_event,
     find_available_slots,
-
     get_events,
-
-    delete_event as delete_calendar_event
-
+    delete_event as delete_calendar_event,
+    _tzinfo_from_name,
+    get_primary_calendar_timezone,
+    CalendarPermissionError,
 )
 
 try:
@@ -90,14 +87,6 @@ def get_events_endpoint():
             'date': date_obj.isoformat()
 
         })
-
-        
-
-    except TokenRefreshError as e:
-
-        logger.error(f"Token refresh failed: {e}")
-
-        return jsonify({'error': 'Google Calendar authentication expired. Please reconnect.'}), 401
 
     except Exception as e:
 
@@ -236,29 +225,25 @@ def get_available_slots():
         
 
         return jsonify({
-
             'slots': slots,
-
             'start_date': start_dt.isoformat(),
-
             'end_date': end_dt.isoformat(),
-
             'duration_minutes': duration
-
         })
 
-        
-
+    except CalendarPermissionError as e:
+        logger.error(f"Calendar permission error finding slots: {e}")
+        return jsonify({
+            'error': 'Calendar permissions required',
+            'calendar_permission_error': True,
+            'reauthorize_url': url_for('auth.google_calendar_reauthorize', _external=True),
+            'details': getattr(e, 'body', None)
+        }), 403
     except TokenRefreshError as e:
-
         logger.error(f"Token refresh failed: {e}")
-
         return jsonify({'error': 'Google Calendar authentication expired. Please reconnect.'}), 401
-
     except Exception as e:
-
         logger.error(f"Error finding slots: {e}")
-
         return jsonify({'error': f'Failed to find available slots: {str(e)}'}), 500
 
 
@@ -301,17 +286,51 @@ def create_event_endpoint():
 
         
 
-        # Parse datetime strings
+        # Parse datetime strings robustly and interpret naive datetimes in user's calendar timezone
+        def _parse_incoming_iso(dt_str: str, client_tz: str = None):
+            if not dt_str or not isinstance(dt_str, str):
+                raise ValueError('Invalid datetime')
+            # If contains 'Z' or an explicit offset (e.g. +02:00 or -05:00), parse directly
+            if 'Z' in dt_str or (('+' in dt_str and dt_str.rfind('+') > 8) or ('-' in dt_str and dt_str.rfind('-') > 8)):
+                try:
+                    return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+                except Exception:
+                    raise ValueError('Invalid datetime format')
+
+            # No offset present: prefer client-provided timezone, otherwise use user's calendar timezone
+            if client_tz:
+                cal_tz_name = client_tz
+            else:
+                try:
+                    cal_tz_info = get_primary_calendar_timezone(current_user)
+                    cal_tz_name = cal_tz_info.get('timezone') if isinstance(cal_tz_info, dict) else (cal_tz_info or 'UTC')
+                except Exception:
+                    cal_tz_name = 'UTC'
+
+            tz = _tzinfo_from_name(cal_tz_name)
+            try:
+                naive = datetime.fromisoformat(dt_str)
+            except Exception:
+                raise ValueError('Invalid datetime format')
+            try:
+                return naive.replace(tzinfo=tz)
+            except Exception:
+                return naive.replace(tzinfo=timezone.utc)
 
         try:
+            client_tz = data.get('client_timezone') or None
+            # Prefer the explicit ISO-with-offset if provided (from browser)
+            if data.get('start_time_iso_with_offset'):
+                start_time = datetime.fromisoformat(data['start_time_iso_with_offset'].replace('Z', '+00:00'))
+            else:
+                start_time = _parse_incoming_iso(data['start_time'], client_tz)
 
-            start_time = datetime.fromisoformat(data['start_time'].replace('Z', '+00:00'))
-
-            end_time = datetime.fromisoformat(data['end_time'].replace('Z', '+00:00'))
-
-        except ValueError:
-
-            return jsonify({'error': 'Invalid datetime format'}), 400
+            if data.get('end_time_iso_with_offset'):
+                end_time = datetime.fromisoformat(data['end_time_iso_with_offset'].replace('Z', '+00:00'))
+            else:
+                end_time = _parse_incoming_iso(data['end_time'], client_tz)
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
 
         
 
@@ -410,11 +429,8 @@ def chat_message():
         message = data.get('message', '')
 
         if not isinstance(message, str) or not message.strip():
-
             return jsonify({'error': 'No message provided'}), 400
-
         message = message.strip()
-
         
 
         # Process message with AI assistant using new tool-based flow
@@ -491,15 +507,18 @@ def delete_event(event_id):
 
             
 
+    except CalendarPermissionError as e:
+        logger.error(f"Calendar permission error deleting event: {e}")
+        return jsonify({
+            'error': 'Calendar permissions required',
+            'calendar_permission_error': True,
+            'reauthorize_url': url_for('auth.google_calendar_reauthorize', _external=True),
+            'details': getattr(e, 'body', None)
+        }), 403
     except TokenRefreshError as e:
-
         logger.error(f"Token refresh failed: {e}")
-
         return jsonify({'error': 'Google Calendar authentication expired. Please reconnect.'}), 401
-
     except Exception as e:
-
         logger.error(f"Error deleting event: {e}")
-
         return jsonify({'error': f'Failed to delete event: {str(e)}'}), 500
 

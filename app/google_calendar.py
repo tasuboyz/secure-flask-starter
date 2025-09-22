@@ -9,6 +9,11 @@ This module provides helpers for:
 
 import requests
 from datetime import datetime, timedelta, timezone
+try:
+    # Python 3.9+ zoneinfo for IANA tz names
+    from zoneinfo import ZoneInfo
+except Exception:
+    ZoneInfo = None
 from flask import current_app
 from app.extensions import db
 
@@ -16,6 +21,18 @@ from app.extensions import db
 class TokenRefreshError(Exception):
     """Raised when token refresh fails."""
     pass
+
+
+class CalendarPermissionError(Exception):
+    """Raised when the access token lacks required calendar scopes.
+
+    Attributes:
+        message: human-readable message
+        body: raw response body from Google (if available)
+    """
+    def __init__(self, message="Insufficient calendar permissions", body=None):
+        super().__init__(message)
+        self.body = body
 
 
 def ensure_valid_token(user):
@@ -115,81 +132,109 @@ def make_calendar_request(user, method, endpoint, **kwargs):
     
     url = f"https://www.googleapis.com/calendar/v3/{endpoint}"
     
-    return requests.request(method, url, timeout=30, **kwargs)
+    resp = requests.request(method, url, timeout=30, **kwargs)
+    # If Google returns 403 due to insufficient scopes, raise a specific error
+    try:
+        if resp.status_code == 403:
+            # Look for ACCESS_TOKEN_SCOPE_INSUFFICIENT hint in body
+            try:
+                body = resp.json()
+            except Exception:
+                body = resp.text
+            # Raise a CalendarPermissionError so callers can react (reauthorize)
+            from app.google_calendar import CalendarPermissionError
+            current_app.logger.debug('Google Calendar permission error: %s', body)
+            raise CalendarPermissionError('ACCESS_TOKEN_SCOPE_INSUFFICIENT', body=body)
+    except CalendarPermissionError:
+        # Re-raise to be handled upstream
+        raise
+    return resp
 
 
 def get_primary_calendar_timezone(user) -> dict:
-    """Return info about the primary calendar timezone for the user.
+    """Best-effort timezone without calling Google APIs.
 
-    Returns a dict with:
-      - timezone: str (e.g. 'Europe/Rome' or 'UTC')
-      - permission_error: bool (True if request was rejected due to scopes)
-      - error_body: optional raw response body for debugging
+    Eliminates network calls to avoid ACCESS_TOKEN_SCOPE_INSUFFICIENT when
+    the token lacks broad scopes. Returns a dict with:
+      - timezone: str (IANA name when possible, else 'UTC')
+      - permission_error: always False (no Google call is made)
+      - error_body: None
 
-    This wraps the calendars/primary request and falls back to inferring
-    an offset from recent events if the direct call fails.
+    Heuristics:
+      1) Use server local timezone name if available
+      2) Fallback to UTC
     """
-
-    # Request only the timezone field to minimize permissions/response size
-    resp = make_calendar_request(user, 'GET', 'calendars/primary?fields=timeZone')
-    # If non-2xx status, log response for debugging
-    if resp.status_code != 200:
-        try:
-            current_app.logger.debug('Failed calendars/primary for user %s: status=%s body=%s', getattr(user, 'id', '<anon>'), resp.status_code, resp.text)
-            body = resp.text
-        except Exception:
-            current_app.logger.debug('Failed calendars/primary for user %s with status %s (no body available)', getattr(user, 'id', '<anon>'), resp.status_code)
-            body = None
-        # If 403, caller likely lacks scopes
-        permission_error = resp.status_code == 403
-    else:
-        try:
-            data = resp.json()
-            tz = data.get('timeZone')
-            if tz:
-                return {'timezone': tz, 'permission_error': False, 'error_body': None}
-        except Exception:
-            permission_error = False
-            body = None
-
-    # Fallback: try to fetch a recent event and infer timezone from its start datetime offset
+    # Try to get the system local timezone name or offset
     try:
-        now = datetime.utcnow()
-        params = {
-            'timeMin': (now - timedelta(days=1)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
-            'timeMax': (now + timedelta(days=1)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
-            'maxResults': 1,
-            'singleEvents': True,
-            'orderBy': 'startTime'
-        }
-        ev_resp = make_calendar_request(user, 'GET', 'calendars/primary/events', params=params)
-        if ev_resp.status_code == 200:
-            try:
-                items = ev_resp.json().get('items', [])
-                if items:
-                    start = items[0].get('start', {})
-                    dt_str = start.get('dateTime') or start.get('date')
-                    if dt_str and '+' in dt_str:
-                        # Extract offset (+02:00 etc.) and return as timezone hint
-                        offset = dt_str.split('+')[-1]
-                        return {'timezone': f'UTC+{offset}', 'permission_error': False, 'error_body': None}
-                    if dt_str and '-' in dt_str and dt_str.count('-') >= 2:
-                        # This is a rough heuristic for negative offsets
-                        parts = dt_str.rsplit('-', 1)
-                        if len(parts) == 2 and ':' in parts[1]:
-                            return {'timezone': f'UTC-{parts[1]}', 'permission_error': False, 'error_body': None}
-            except Exception as e:
-                current_app.logger.debug('Error parsing events response for timezone fallback for user %s: %s', getattr(user, 'id', '<anon>'), str(e))
-        else:
-            try:
-                current_app.logger.debug('Timezone fallback events request failed for user %s: status=%s body=%s', getattr(user, 'id', '<anon>'), ev_resp.status_code, ev_resp.text)
-            except Exception:
-                current_app.logger.debug('Timezone fallback events request failed for user %s with status %s', getattr(user, 'id', '<anon>'), ev_resp.status_code)
-    except Exception as e:
-        current_app.logger.debug('Error during timezone fallback for user %s: %s', getattr(user, 'id', '<anon>'), str(e))
+        local_tz = datetime.now().astimezone().tzinfo
+        if hasattr(local_tz, 'key') and isinstance(local_tz.key, str):
+            # zoneinfo ZoneInfo provides .key (e.g., 'Europe/Rome')
+            return {'timezone': local_tz.key, 'permission_error': False, 'error_body': None}
+        # Fallback to tzname (non-IANA in some environments)
+        tzname = datetime.now().astimezone().tzname()
+        if isinstance(tzname, str) and tzname:
+            return {'timezone': tzname, 'permission_error': False, 'error_body': None}
+    except Exception:
+        pass
 
-    current_app.logger.debug('Could not determine primary calendar timezone for user %s; defaulting to UTC', getattr(user, 'id', '<anon>'))
-    return {'timezone': 'UTC', 'permission_error': permission_error if 'permission_error' in locals() else False, 'error_body': body if 'body' in locals() else None}
+    return {'timezone': 'UTC', 'permission_error': False, 'error_body': None}
+
+
+def _tzinfo_from_name(tz_name: str):
+    """Return a tzinfo for an IANA timezone name or a UTC±HH:MM hint.
+
+    Falls back to UTC on failure.
+    """
+    if not tz_name:
+        return timezone.utc
+
+    # Accept dict-like input where tz_name may be a dict
+    try:
+        if isinstance(tz_name, dict):
+            tz_name = tz_name.get('timezone') or tz_name.get('tz') or ''
+    except Exception:
+        pass
+
+    # Handle simple UTC offset hints like 'UTC+02:00' or 'UTC-05:30'
+    if isinstance(tz_name, str) and tz_name.upper().startswith('UTC'):
+        # Exact 'UTC' fallback
+        if tz_name.strip().upper() == 'UTC':
+            return timezone.utc
+        # Parse offset
+        try:
+            sign = 1
+            rest = tz_name[3:]
+            if rest.startswith('+'):
+                sign = 1
+                rest = rest[1:]
+            elif rest.startswith('-'):
+                sign = -1
+                rest = rest[1:]
+            if ':' in rest:
+                hours_str, mins_str = rest.split(':', 1)
+                hours = int(hours_str)
+                mins = int(mins_str)
+            else:
+                hours = int(rest)
+                mins = 0
+            return timezone(timedelta(hours=sign * hours, minutes=sign * mins))
+        except Exception:
+            return timezone.utc
+
+    # Try ZoneInfo for IANA names
+    if ZoneInfo is not None and isinstance(tz_name, str):
+        try:
+            return ZoneInfo(tz_name)
+        except Exception:
+            # Try dateutil.tz as a softer fallback (not required dependency)
+            # Skip optional dateutil dependency to avoid import issues; continue fallbacks
+            # As a last resort, use the system local timezone (helps dev envs without zoneinfo)
+            try:
+                return datetime.now().astimezone().tzinfo
+            except Exception:
+                return timezone.utc
+
+    return timezone.utc
 
 
 def get_events(user, start_time=None, end_time=None, max_results=10):
@@ -204,14 +249,23 @@ def get_events(user, start_time=None, end_time=None, max_results=10):
     Returns:
         list: List of event dictionaries
     """
-    def _to_rfc3339_z(dt: datetime) -> str:
-        """Convert datetime to RFC3339 string with 'Z' for UTC.
+    # Interpret naive datetimes as UTC to avoid requiring extra permissions
+    cal_tz_name = 'UTC'
 
-        Handles both naive and timezone-aware datetimes.
+    def _to_rfc3339_z(dt: datetime) -> str:
+        """Convert datetime to RFC3339 string (UTC 'Z').
+
+        If dt is naive, interpret it in the user's calendar timezone then
+        convert to UTC for the API call. If dt is aware, convert to UTC.
         """
         if dt.tzinfo is None:
-            # naive -> assume UTC
-            return dt.replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z')
+            tz = _tzinfo_from_name(cal_tz_name)
+            try:
+                # Attach timezone without changing wall time
+                dt = dt.replace(tzinfo=tz)
+            except Exception:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
         # aware -> convert to UTC and emit Z
         return dt.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
 
@@ -308,19 +362,28 @@ def create_event(user, start_time, end_time, title, description="", attendees=No
     Returns:
         dict: Created event data from Google Calendar API
     """
-    # Try to determine the user's calendar timezone; if not available default to UTC
-    cal_tz_info = get_primary_calendar_timezone(user)
-    if isinstance(cal_tz_info, dict):
-        cal_tz = cal_tz_info.get('timezone', 'UTC')
-    else:
-        cal_tz = cal_tz_info or 'UTC'
+    # Use UTC when creating events to avoid Google timezone lookups
+    cal_tz = 'UTC'
 
     def _to_rfc3339_with_tz(dt: datetime, tz_name: str) -> str:
-        # If dt is naive, assume tz_name refers to local timezone and attach UTC
-        if dt.tzinfo is None:
-            # treat naive as UTC to avoid ambiguity
+        # Ensure dt is represented in the calendar timezone before serializing.
+        tz = _tzinfo_from_name(tz_name)
+        try:
+            if dt.tzinfo is None:
+                # Interpret naive as calendar timezone
+                dt = dt.replace(tzinfo=tz)
+            else:
+                # Convert any aware datetime (e.g., UTC) into calendar timezone
+                try:
+                    dt = dt.astimezone(tz)
+                except Exception:
+                    # If astimezone fails, fall back to attaching tz
+                    dt = dt.replace(tzinfo=tz)
+        except Exception:
+            # Last-resort: ensure UTC
             dt = dt.replace(tzinfo=timezone.utc)
-        # Use ISO with offset (Google accepts ISO with offset or Z)
+
+        # Return an ISO string with offset (Google accepts ISO with offset)
         return dt.isoformat()
 
     event_data = {

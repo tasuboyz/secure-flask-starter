@@ -8,6 +8,7 @@ from app.auth.forms import LoginForm, RegistrationForm, ForgotPasswordForm, Rese
 from app.auth.email_utils import send_password_reset_email
 from app.extensions import db, limiter, oauth
 from app.models import User
+from flask import session
 
 
 @bp.route('/login', methods=['GET', 'POST'])
@@ -258,20 +259,35 @@ def google_calendar_connect():
     """Initiate Google OAuth flow requesting Calendar scopes to connect user's calendar."""
     try:
         google_client = oauth.google
+        # Determine requested permission mode (readonly/events/full)
+        # Prefer explicit query param, fall back to user's saved preference, else 'full'
+        default_mode = getattr(current_user, 'google_permission_mode', None) or 'full'
+        mode = (request.args.get('mode') or default_mode).lower()
+        if mode == 'readonly':
+            cal_scope = 'https://www.googleapis.com/auth/calendar.events.readonly'
+        elif mode == 'full':
+            cal_scope = 'https://www.googleapis.com/auth/calendar'
+        else:
+            cal_scope = 'https://www.googleapis.com/auth/calendar.events'
         # Request calendar scopes in addition to basic openid/email/profile
-        calendar_scope = 'openid email profile https://www.googleapis.com/auth/calendar.events'
+        calendar_scope = f'openid email profile {cal_scope}'
         redirect_uri = url_for('auth.google_calendar_callback', _external=True)
         
         # Debug logging
         current_app.logger.info(f'Calendar OAuth redirect URI: {redirect_uri}')
         current_app.logger.info(f'Calendar OAuth scope: {calendar_scope}')
         
+        # Persist requested mode in session so callback can persist user's choice
+        session['google_permission_mode'] = mode
+
         # Request offline access and explicit consent to ensure we get a refresh token
+        # Request offline access, force consent, and include granted scopes
         return google_client.authorize_redirect(
-            redirect_uri, 
+            redirect_uri,
             scope=calendar_scope,
             access_type='offline',
-            prompt='consent'
+            prompt='consent',
+            include_granted_scopes='true'
         )
     except AttributeError:
         current_app.logger.warning('OAuth google provider not registered')
@@ -318,6 +334,15 @@ def google_calendar_callback():
                 # If expires_at isn't an integer, skip
                 pass
 
+        # Persist selected permission mode (if present in session)
+        try:
+            mode = session.pop('google_permission_mode', None)
+            if mode and mode in ('readonly', 'events', 'full'):
+                user.google_permission_mode = mode
+        except Exception:
+            # Non-fatal: session may not be available in certain test contexts
+            current_app.logger.debug('No google_permission_mode in session to persist')
+
         user.google_calendar_connected = True
         db.session.commit()
 
@@ -342,8 +367,56 @@ def google_calendar_reauthorize():
     """
     try:
         google_client = oauth.google
-        calendar_scope = 'openid email profile https://www.googleapis.com/auth/calendar.events'
+        default_mode = getattr(current_user, 'google_permission_mode', None) or 'full'
+        mode = (request.args.get('mode') or default_mode).lower()
+        if mode == 'readonly':
+            cal_scope = 'https://www.googleapis.com/auth/calendar.events.readonly'
+        elif mode == 'full':
+            cal_scope = 'https://www.googleapis.com/auth/calendar'
+        else:
+            cal_scope = 'https://www.googleapis.com/auth/calendar.events'
+        calendar_scope = f'openid email profile {cal_scope}'
         redirect_uri = url_for('auth.google_calendar_callback', _external=True)
+
+        # Persist requested mode in session so callback can persist user's choice
+        session['google_permission_mode'] = mode
+
+        # If we have a stored refresh token, attempt to revoke it at Google's
+        # revocation endpoint before starting reauthorization. This helps
+        # ensure Google will show the consent screen again and issue a new
+        # refresh token when possible.
+        try:
+            user = current_user
+            refresh_token = getattr(user, 'google_refresh_token', None)
+            if refresh_token:
+                import requests
+                revoke_url = 'https://oauth2.googleapis.com/revoke'
+                current_app.logger.info('Revoking existing Google refresh token for user %s', user.get_id())
+                try:
+                    # Google expects the token in the request body (form-encoded)
+                    r = requests.post(revoke_url, data={'token': refresh_token}, headers={'content-type': 'application/x-www-form-urlencoded'}, timeout=5)
+                    if r.status_code in (200, 400):
+                        # 200 = revoked, 400 = token invalid/already revoked; accept both
+                        current_app.logger.info('Google token revocation response: %s', r.status_code)
+                    else:
+                        current_app.logger.warning('Unexpected revocation response %s: %s', r.status_code, r.text)
+                except Exception as rev_err:
+                    current_app.logger.warning('Failed to call Google revocation endpoint: %s', str(rev_err))
+
+                # Clear stored tokens locally so the app behaves as disconnected
+                try:
+                    user.google_access_token = None
+                    user.google_refresh_token = None
+                    user.google_token_expires_at = None
+                    user.google_calendar_connected = False
+                    db.session.commit()
+                except Exception as clear_err:
+                    current_app.logger.warning('Failed clearing user Google tokens: %s', str(clear_err))
+
+        except Exception:
+            # Non-fatal: if anything goes wrong with revocation we still
+            # attempt to start a fresh reauthorization flow.
+            current_app.logger.exception('Error during pre-reauthorize revocation')
 
         # Force consent and request offline access to try and obtain refresh token
         current_app.logger.info('Initiating Google Calendar reauthorization')
@@ -351,9 +424,53 @@ def google_calendar_reauthorize():
             redirect_uri,
             scope=calendar_scope,
             access_type='offline',
-            prompt='consent'
+            prompt='consent',
+            include_granted_scopes='true'
         )
     except AttributeError:
         current_app.logger.warning('OAuth google provider not registered')
         flash('Google OAuth non è configurato.', 'danger')
         return redirect(url_for('main.dashboard'))
+
+
+@bp.route('/google/calendar/disconnect', methods=['POST'])
+@login_required
+def google_calendar_disconnect():
+    """Revoke stored Google tokens for the current user and clear DB fields."""
+    try:
+        google_client = oauth.google
+    except AttributeError:
+        flash('Google OAuth non è configurato.', 'danger')
+        return redirect(url_for('main.dashboard'))
+
+    user = current_user
+    try:
+        # Ensure we have a managed session object
+        try:
+            user = db.session.get(User, int(user.get_id()))
+        except Exception:
+            user = User.query.get(int(user.get_id()))
+
+        refresh_token = getattr(user, 'google_refresh_token', None)
+        if refresh_token:
+            import requests
+            revoke_url = 'https://oauth2.googleapis.com/revoke'
+            try:
+                r = requests.post(revoke_url, data={'token': refresh_token}, headers={'content-type': 'application/x-www-form-urlencoded'}, timeout=5)
+                current_app.logger.info('Google revocation response status: %s', r.status_code)
+            except Exception as e:
+                current_app.logger.warning('Failed calling Google revocation endpoint: %s', str(e))
+
+        # Clear tokens locally
+        user.google_access_token = None
+        user.google_refresh_token = None
+        user.google_token_expires_at = None
+        user.google_calendar_connected = False
+        db.session.commit()
+
+        flash('Google Calendar scollegato con successo.', 'success')
+    except Exception as e:
+        current_app.logger.exception('Error during Google Calendar disconnect: %s', str(e))
+        flash('Errore durante la disconnessione del Google Calendar.', 'danger')
+
+    return redirect(url_for('main.dashboard'))

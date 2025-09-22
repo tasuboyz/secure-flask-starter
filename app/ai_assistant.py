@@ -120,6 +120,19 @@ class AIAssistantService:
                     )
                     _log_debug('Tool result: %s', result)
                     tool_results.append(result)
+
+                # If any tool indicated a calendar permission error, return early with reauthorization hint
+                for tr in tool_results:
+                    if isinstance(tr, dict) and tr.get('calendar_permission_error'):
+                        # Return structured message so the HTTP handler / UI can prompt reauthorization
+                        try:
+                            msg = "I don't have permission to access your Google Calendar. Please reauthorize the calendar connection."
+                            reauth = tr.get('reauthorize_url') or (url_for('auth.google_calendar_reauthorize', _external=True) if 'url_for' in globals() else '/auth/google/calendar/reauthorize')
+                        except Exception:
+                            msg = "I don't have permission to access your Google Calendar. Please reauthorize the calendar connection."
+                            reauth = tr.get('reauthorize_url') if isinstance(tr, dict) else '/auth/google/calendar/reauthorize'
+                        # Return a special structured payload that callers can detect
+                        return {"error": "calendar_permission_error", "message": msg, "reauthorize_url": reauth}
                 
                 # Create follow-up request with tool results
                 # Add an assistant message indicating progress and include tool results
@@ -459,8 +472,21 @@ class AIAssistantService:
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
         except Exception as e:
+            # If the error arises from Google Calendar insufficient scopes,
+            # detect the CalendarPermissionError or the 'ACCESS_TOKEN_SCOPE_INSUFFICIENT'
+            # sentinel returned by google_calendar helpers and return a structured
+            # response so the caller (AI flow / HTTP handler) can prompt reauthorization.
             logger.error(f"Tool execution failed for {tool_name}: {e}")
             current_app.logger.debug('Tool execution exception for %s: %s', tool_name, str(e))
+            # CalendarPermissionError detection by exception type name (avoid import cycles)
+            if e.__class__.__name__ == 'CalendarPermissionError' or 'ACCESS_TOKEN_SCOPE_INSUFFICIENT' in str(e):
+                # Provide a standardized response signaling the need to reauthorize
+                try:
+                    from flask import url_for
+                    reauth_url = url_for('auth.google_calendar_reauthorize', _external=True)
+                except Exception:
+                    reauth_url = '/auth/google/calendar/reauthorize'
+                return {"success": False, "error": "ACCESS_TOKEN_SCOPE_INSUFFICIENT", "calendar_permission_error": True, "reauthorize_url": reauth_url}
             return {"error": f"Tool execution failed: {str(e)}"}
 
     def _execute_create_event(self, args: dict, user) -> dict:
@@ -468,16 +494,36 @@ class AIAssistantService:
         try:
             from app.google_calendar import create_event
             from datetime import datetime
+            from app.google_calendar import get_primary_calendar_timezone, _tzinfo_from_name
+            from datetime import timezone
             # Parse datetime strings robustly, allowing timezone offsets
             def _parse_iso(dt_str: str):
                 if not dt_str:
                     return None
-                # If Z present, convert to +00:00 for fromisoformat
+                # If contains Z or explicit offset, parse directly
+                if 'Z' in dt_str or ('+' in dt_str and dt_str.rfind('+') > 8) or ('-' in dt_str and dt_str.rfind('-') > 8):
+                    try:
+                        return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+                    except Exception:
+                        # Last-resort: try to parse without modifications
+                        return datetime.fromisoformat(dt_str)
+
+                # No offset present: interpret in user's calendar timezone
                 try:
-                    return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+                    cal_tz_info = get_primary_calendar_timezone(user)
+                    cal_tz_name = cal_tz_info.get('timezone') if isinstance(cal_tz_info, dict) else (cal_tz_info or 'UTC')
                 except Exception:
-                    # Last-resort: try to parse without modifications
+                    cal_tz_name = 'UTC'
+
+                tz = _tzinfo_from_name(cal_tz_name)
+                try:
+                    naive = datetime.fromisoformat(dt_str)
+                except Exception:
                     return datetime.fromisoformat(dt_str)
+                try:
+                    return naive.replace(tzinfo=tz)
+                except Exception:
+                    return naive.replace(tzinfo=timezone.utc)
 
             start_time = _parse_iso(args.get('start_time'))
             end_time = _parse_iso(args.get('end_time'))

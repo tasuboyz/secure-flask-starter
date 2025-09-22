@@ -1,205 +1,252 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="dashboard-container">
-    <!-- Dashboard Header -->
-    <div class="dashboard-header">
-        <h1>Dashboard</h1>
-        <div class="subtitle">Benvenuto, {{ user.email }}</div>
-    </div>
+<div class="calendar-dashboard">
+    <!-- LEFT SIDEBAR: Navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Calendar</span>
+            </div>
+        </div>
+        
+        <nav class="nav-menu">
+            <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#calendar" class="nav-item" data-section="calendar">
+                <i class="fas fa-calendar"></i>
+                <span>Calendario</span>
+            </a>
+            <a href="#assistant" class="nav-item" data-section="assistant">
+                <i class="fas fa-robot"></i>
+                <span>AI Assistant</span>
+            </a>
+            <a href="#settings" class="nav-item" data-section="settings">
+                <i class="fas fa-cog"></i>
+                <span>Impostazioni</span>
+            </a>
+        </nav>
+        
+        <div class="user-profile">
+            <div class="user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="user-info">
+                <div class="user-name">{{ user.email.split('@')[0] }}</div>
+                <div class="user-status">
+                    {% if user.google_calendar_connected and user.ai_assistant_enabled %}
+                        <span class="status-dot status-success"></span>
+                        Tutto attivo
+                    {% elif user.google_calendar_connected %}
+                        <span class="status-dot status-warning"></span>
+                        Calendar collegato
+                    {% else %}
+                        <span class="status-dot status-error"></span>
+                        Setup richiesto
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </aside>
 
-    <!-- Quick Stats -->
-    <div class="quick-stats">
-        <div class="stat-card">
-            <span class="stat-number" id="eventsCount">-</span>
-            <div class="stat-label">Eventi Oggi</div>
-        </div>
-        <div class="stat-card">
-            <span class="stat-number" id="availableSlots">-</span>
-            <div class="stat-label">Slot Liberi</div>
-        </div>
-        <div class="stat-card">
-            <span class="stat-number">
-                {% if user.google_calendar_connected %}1{% else %}0{% endif %}
-            </span>
-            <div class="stat-label">Servizi Collegati</div>
-        </div>
-        <div class="stat-card">
-            <span class="stat-number">
-                {% if user.ai_assistant_enabled and user.openai_api_key %}1{% else %}0{% endif %}
-            </span>
-            <div class="stat-label">AI Attivo</div>
-        </div>
-    </div>
+    <!-- CENTER: Calendar Main -->
+    <main class="calendar-main">
+        <!-- Dashboard Section (default) -->
+        <div id="dashboard-section" class="content-section active">
+            <header class="calendar-header">
+                <div class="header-content">
+                    <h1>Dashboard</h1>
+                    <div class="header-subtitle">Benvenuto, {{ user.email }}</div>
+                </div>
+                <div class="quick-actions">
+                    <button class="btn-action btn-primary" onclick="createQuickEvent()">
+                        <i class="fas fa-plus"></i>
+                        <span>Nuovo Evento</span>
+                    </button>
+                </div>
+            </header>
 
-    <!-- Tab Navigation -->
-    <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <a class="nav-link active" id="overview-tab" data-bs-toggle="tab" href="#overview" role="tab">
-                <i class="fas fa-home me-2"></i>Panoramica
-            </a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" id="calendar-tab" data-bs-toggle="tab" href="#calendar" role="tab">
-                <i class="fas fa-calendar me-2"></i>Calendario
-            </a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" id="assistant-tab" data-bs-toggle="tab" href="#assistant" role="tab">
-                <i class="fas fa-robot me-2"></i>AI Assistant
-            </a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" id="settings-tab" data-bs-toggle="tab" href="#settings" role="tab">
-                <i class="fas fa-cog me-2"></i>Impostazioni
-            </a>
-        </li>
-    </ul>
+            <!-- Quick Stats -->
+            <div class="quick-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-number" id="eventsCount">-</span>
+                        <div class="stat-label">Eventi Oggi</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-number" id="availableSlots">-</span>
+                        <div class="stat-label">Slot Liberi</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fab fa-google"></i>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-number">
+                            {% if user.google_calendar_connected %}1{% else %}0{% endif %}
+                        </span>
+                        <div class="stat-label">Servizi Collegati</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-number">
+                            {% if user.ai_assistant_enabled and user.openai_api_key %}1{% else %}0{% endif %}
+                        </span>
+                        <div class="stat-label">AI Attivo</div>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Tab Content -->
-    <div class="tab-content" id="dashboardTabContent">
-        <!-- Overview Tab -->
-        <div class="tab-pane fade show active" id="overview" role="tabpanel">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-user me-2"></i>Informazioni Account</h5>
+            <!-- Overview Cards -->
+            <div class="overview-grid">
+                <div class="overview-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-user me-2"></i>Informazioni Account</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="info-row">
+                            <span class="info-label">Email:</span>
+                            <span class="info-value">{{ user.email }}</span>
                         </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-sm-6"><strong>Email:</strong></div>
-                                <div class="col-sm-6">{{ user.email }}</div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-sm-6"><strong>Stato:</strong></div>
-                                <div class="col-sm-6">
-                                    {% if user.is_active %}
-                                        <span class="status-badge status-connected">Attivo</span>
-                                    {% else %}
-                                        <span class="status-badge status-inactive">Disattivato</span>
-                                    {% endif %}
-                                    {% if user.is_admin %}
-                                        <span class="status-badge status-warning ms-2">Admin</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-sm-6"><strong>Ultimo accesso:</strong></div>
-                                <div class="col-sm-6">
-                                    {{ user.last_login_at.strftime('%d/%m/%Y %H:%M') if user.last_login_at else 'Primo accesso' }}
-                                </div>
-                            </div>
+                        <div class="info-row">
+                            <span class="info-label">Stato:</span>
+                            <span class="info-value">
+                                {% if user.is_active %}
+                                    <span class="status-badge status-connected">Attivo</span>
+                                {% else %}
+                                    <span class="status-badge status-inactive">Disattivato</span>
+                                {% endif %}
+                                {% if user.is_admin %}
+                                    <span class="status-badge status-warning ms-2">Admin</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Ultimo accesso:</span>
+                            <span class="info-value">
+                                {{ user.last_login_at.strftime('%d/%m/%Y %H:%M') if user.last_login_at else 'Primo accesso' }}
+                            </span>
                         </div>
                     </div>
                 </div>
-                
-                <div class="col-md-6">
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Sicurezza</h5>
-                        </div>
-                        <div class="card-body">
-                            <p class="mb-3">
-                                {% if user.last_password_change_at %}
-                                    Password modificata: {{ user.last_password_change_at.strftime('%d/%m/%Y') }}
-                                {% else %}
-                                    Password impostata alla registrazione
-                                {% endif %}
-                            </p>
-                            <a href="{{ url_for('auth.forgot_password') }}" class="btn btn-outline-primary btn-modern">
-                                Cambia Password
-                            </a>
-                            <div class="mt-3">
-                                <h6>Sicurezza Attiva:</h6>
-                                <div class="d-flex flex-wrap gap-2">
-                                    <span class="badge bg-success">Argon2</span>
-                                    <span class="badge bg-success">CSRF</span>
-                                    <span class="badge bg-success">Rate Limiting</span>
-                                    <span class="badge bg-success">Sessioni Sicure</span>
-                                </div>
-                            </div>
+
+                <div class="overview-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-shield-alt me-2"></i>Sicurezza</h3>
+                    </div>
+                    <div class="card-content">
+                        <p class="mb-3">
+                            {% if user.last_password_change_at %}
+                                Password modificata: {{ user.last_password_change_at.strftime('%d/%m/%Y') }}
+                            {% else %}
+                                Password impostata alla registrazione
+                            {% endif %}
+                        </p>
+                        <a href="{{ url_for('auth.forgot_password') }}" class="btn btn-outline-primary btn-modern">
+                            Cambia Password
+                        </a>
+                        <div class="security-badges">
+                            <span class="badge bg-success">Argon2</span>
+                            <span class="badge bg-success">CSRF</span>
+                            <span class="badge bg-success">Rate Limiting</span>
+                            <span class="badge bg-success">Sessioni Sicure</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Calendar Tab -->
-        <div class="tab-pane fade" id="calendar" role="tabpanel">
+        <!-- Calendar Section -->
+        <div id="calendar-section" class="content-section">
+            <header class="calendar-header">
+                <div class="header-content">
+                    <h1>Settembre 2025</h1>
+                    <div class="calendar-navigation">
+                        <button class="btn-nav" id="prevMonth">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="btn-nav" id="nextMonth">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="calendar-controls">
+                    <input type="search" class="search-input" placeholder="Cerca eventi..." id="searchEvents">
+                    <button class="btn-action btn-primary" onclick="createQuickEvent()">
+                        <i class="fas fa-plus"></i>
+                        <span>Nuovo Evento</span>
+                    </button>
+                </div>
+            </header>
+
             {% if user.google_calendar_connected %}
-                <div class="row">
-                    <div class="col-md-8">
-                        <div class="dashboard-card">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>I Tuoi Eventi</h5>
-                                <div class="d-flex gap-2 mt-2">
-                                    <button id="loadEvents" class="btn btn-primary btn-sm btn-modern">
-                                        <i class="fas fa-sync me-1"></i>Carica Eventi
-                                    </button>
-                                    <button id="checkAvailability" class="btn btn-info btn-sm btn-modern">
-                                        <i class="fas fa-clock me-1"></i>Verifica Disponibilità
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div id="eventsList" style="display: none;">
-                                    <div id="eventsContainer" class="events-list"></div>
-                                </div>
-                                <div id="eventsPlaceholder" class="text-center text-muted">
-                                    <i class="fas fa-calendar-plus fa-3x mb-3"></i>
-                                    <p>Clicca "Carica Eventi" per vedere i tuoi prossimi appuntamenti</p>
-                                </div>
-                            </div>
+                <div class="calendar-container">
+                    <!-- Calendar Grid will be populated by JavaScript -->
+                    <div id="calendar-grid" class="calendar-grid">
+                        <div class="calendar-loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Caricamento calendario...</p>
                         </div>
                     </div>
                     
-                    <div class="col-md-4">
-                        <div class="dashboard-card">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Azioni Rapide</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="d-grid gap-2">
-                                    <button class="btn btn-success btn-modern" onclick="createQuickEvent()">
-                                        <i class="fas fa-plus me-2"></i>Evento Rapido
-                                    </button>
-                                    <button class="btn btn-warning btn-modern" onclick="findFreeTime()">
-                                        <i class="fas fa-search me-2"></i>Trova Tempo Libero
-                                    </button>
-                                    <button class="btn btn-info btn-modern" onclick="viewWeekly()">
-                                        <i class="fas fa-calendar-week me-2"></i>Vista Settimanale
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- Calendar Actions -->
+                    <div class="calendar-actions">
+                        <button id="loadEvents" class="btn btn-primary btn-modern">
+                            <i class="fas fa-sync me-1"></i>Carica Eventi
+                        </button>
+                        <button id="checkAvailability" class="btn btn-info btn-modern">
+                            <i class="fas fa-clock me-1"></i>Verifica Disponibilità
+                        </button>
+                        <button class="btn btn-success btn-modern" onclick="createQuickEvent()">
+                            <i class="fas fa-plus me-2"></i>Evento Rapido
+                        </button>
                     </div>
                 </div>
             {% else %}
-                <div class="dashboard-card">
-                    <div class="card-body text-center">
-                        <i class="fab fa-google fa-5x text-muted mb-4"></i>
-                        <h3>Collega Google Calendar</h3>
-                        <p class="text-muted mb-4">Connetti il tuo Google Calendar per iniziare a gestire i tuoi eventi</p>
-                        <a href="{{ url_for('auth.google_calendar_connect') }}" class="btn btn-primary btn-lg btn-modern">
-                            <i class="fab fa-google me-2"></i>Collega Google Calendar
-                        </a>
-                        
-                        <div class="mt-4">
-                            <h6>Funzionalità disponibili dopo la connessione:</h6>
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <ul class="list-unstyled">
-                                        <li><i class="fas fa-check text-success me-2"></i>Visualizza eventi</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>Crea appuntamenti</li>
-                                    </ul>
-                                </div>
-                                <div class="col-md-6">
-                                    <ul class="list-unstyled">
-                                        <li><i class="fas fa-check text-success me-2"></i>Trova slot liberi</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>Assistente AI</li>
-                                    </ul>
-                                </div>
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fab fa-google"></i>
+                    </div>
+                    <h3>Collega Google Calendar</h3>
+                    <p>Connetti il tuo Google Calendar per iniziare a gestire i tuoi eventi</p>
+                    <a href="{{ url_for('auth.google_calendar_connect') }}" class="btn btn-primary btn-lg">
+                        <i class="fab fa-google me-2"></i>Collega Google Calendar
+                    </a>
+                    
+                    <div class="features-list">
+                        <h6>Funzionalità disponibili dopo la connessione:</h6>
+                        <div class="features-grid">
+                            <div class="feature-item">
+                                <i class="fas fa-check text-success"></i>
+                                <span>Visualizza eventi</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check text-success"></i>
+                                <span>Crea appuntamenti</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check text-success"></i>
+                                <span>Trova slot liberi</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check text-success"></i>
+                                <span>Assistente AI</span>
                             </div>
                         </div>
                     </div>
@@ -207,302 +254,752 @@
             {% endif %}
         </div>
 
-        <!-- AI Assistant Tab -->
-        <div class="tab-pane fade" id="assistant" role="tabpanel">
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-robot me-2"></i>Chat Assistant</h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="chat-container">
-                                <div id="chatMessages" class="chat-messages">
-                                    {% if user.ai_assistant_enabled and user.openai_api_key %}
-                                        <div class="chat-message bot">
-                                            <div class="message-bubble">
-                                                🤖 Ciao! Sono il tuo assistente AI per il calendario. Puoi chiedermi di:
-                                                <br>• Creare eventi: "Fissa meeting domani alle 10"
-                                                <br>• Controllare agenda: "Cosa ho oggi?"
-                                                <br>• Trovare tempo libero: "Quando sono libero questa settimana?"
-                                            </div>
-                                        </div>
-                                    {% else %}
-                                        <div class="chat-message bot">
-                                            <div class="message-bubble">
-                                                ⚠️ AI Assistant non configurato. 
-                                                <a href="{{ url_for('settings.ai_assistant') }}">Configura la tua API key</a> 
-                                                per utilizzare le funzionalità avanzate.
-                                            </div>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                                <div class="chat-input-group">
-                                    <input type="text" id="chatInput" class="form-control chat-input" 
-                                           placeholder="es. 'Fissa meeting con Mario domani alle 10'"
-                                           {% if not (user.ai_assistant_enabled and user.openai_api_key) %}disabled{% endif %}>
-                                    <button id="sendMessage" class="btn btn-primary btn-modern"
-                                            {% if not (user.ai_assistant_enabled and user.openai_api_key) %}disabled{% endif %}>
-                                        <i class="fas fa-paper-plane"></i>
-                                    </button>
-                                </div>
-                            </div>
+        <!-- AI Assistant Section -->
+        <div id="assistant-section" class="content-section">
+            <header class="calendar-header">
+                <div class="header-content">
+                    <h1>AI Assistant</h1>
+                    <div class="header-subtitle">Chat con il tuo assistente personale</div>
+                </div>
+            </header>
+
+            <div class="assistant-container">
+                <div class="chat-card">
+                    <div class="chat-header">
+                        <h3><i class="fas fa-robot me-2"></i>Chat Assistant</h3>
+                        <div class="chat-status">
+                            {% if user.ai_assistant_enabled and user.openai_api_key %}
+                                <span class="status-dot status-success"></span>
+                                Online
+                            {% else %}
+                                <span class="status-dot status-error"></span>
+                                Offline
+                            {% endif %}
                         </div>
                     </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Stato AI</h5>
-                        </div>
-                        <div class="card-body">
+                    <div class="chat-container">
+                        <div id="chatMessages" class="chat-messages">
                             {% if user.ai_assistant_enabled and user.openai_api_key %}
-                                <div class="text-center">
-                                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                                    <h6>AI Assistant Attivo</h6>
-                                    <p class="text-muted">Modello: {{ user.ai_model_preference }}</p>
-                                </div>
-                            {% elif user.ai_assistant_enabled %}
-                                <div class="text-center">
-                                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                                    <h6>API Key Mancante</h6>
-                                    <p class="text-muted">Configura la tua OpenAI API key</p>
-                                    <a href="{{ url_for('settings.ai_assistant') }}" class="btn btn-warning btn-modern">
-                                        Configura
-                                    </a>
+                                <div class="chat-message bot">
+                                    <div class="message-bubble">
+                                        🤖 Ciao! Sono il tuo assistente AI per il calendario. Puoi chiedermi di:
+                                        <br>• Creare eventi: "Fissa meeting domani alle 10"
+                                        <br>• Controllare agenda: "Cosa ho oggi?"
+                                        <br>• Trovare tempo libero: "Quando sono libero questa settimana?"
+                                    </div>
                                 </div>
                             {% else %}
-                                <div class="text-center">
-                                    <i class="fas fa-robot fa-3x text-muted mb-3"></i>
-                                    <h6>AI Non Attivo</h6>
-                                    <p class="text-muted">Abilita l'assistente AI per funzionalità avanzate</p>
-                                    <a href="{{ url_for('settings.ai_assistant') }}" class="btn btn-primary btn-modern">
-                                        Abilita AI
-                                    </a>
+                                <div class="chat-message bot">
+                                    <div class="message-bubble">
+                                        ⚠️ AI Assistant non configurato. 
+                                        <a href="{{ url_for('settings.ai_assistant') }}">Configura la tua API key</a> 
+                                        per utilizzare le funzionalità avanzate.
+                                    </div>
                                 </div>
                             {% endif %}
+                        </div>
+                        <div class="chat-input-group">
+                            <input type="text" id="chatInput" class="chat-input" 
+                                   placeholder="es. 'Fissa meeting con Mario domani alle 10'"
+                                   {% if not (user.ai_assistant_enabled and user.openai_api_key) %}disabled{% endif %}>
+                            <button id="sendMessage" class="btn-send"
+                                    {% if not (user.ai_assistant_enabled and user.openai_api_key) %}disabled{% endif %}>
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Settings Tab -->
-        <div class="tab-pane fade" id="settings" role="tabpanel">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Configurazione</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-grid gap-3">
-                                <a href="{{ url_for('settings.profile') }}" class="btn btn-outline-primary btn-modern">
-                                    <i class="fas fa-user me-2"></i>Profilo Utente
-                                </a>
-                                <a href="{{ url_for('settings.ai_assistant') }}" class="btn btn-outline-info btn-modern">
-                                    <i class="fas fa-robot me-2"></i>AI Assistant
-                                </a>
-                                <a href="{{ url_for('auth.forgot_password') }}" class="btn btn-outline-warning btn-modern">
-                                    <i class="fas fa-key me-2"></i>Cambia Password
-                                </a>
-                            </div>
+        <!-- Settings Section -->
+        <div id="settings-section" class="content-section">
+            <header class="calendar-header">
+                <div class="header-content">
+                    <h1>Impostazioni</h1>
+                    <div class="header-subtitle">Configura il tuo account e servizi</div>
+                </div>
+            </header>
+
+            <div class="settings-grid">
+                <div class="settings-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-cog me-2"></i>Configurazione</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="settings-actions">
+                            <a href="{{ url_for('settings.profile') }}" class="settings-link">
+                                <i class="fas fa-user"></i>
+                                <div class="link-content">
+                                    <span class="link-title">Profilo Utente</span>
+                                    <span class="link-desc">Gestisci informazioni account</span>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                            <a href="{{ url_for('settings.ai_assistant') }}" class="settings-link">
+                                <i class="fas fa-robot"></i>
+                                <div class="link-content">
+                                    <span class="link-title">AI Assistant</span>
+                                    <span class="link-desc">Configura OpenAI e preferenze</span>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                            <a href="{{ url_for('auth.forgot_password') }}" class="settings-link">
+                                <i class="fas fa-key"></i>
+                                <div class="link-content">
+                                    <span class="link-title">Cambia Password</span>
+                                    <span class="link-desc">Aggiorna la tua password</span>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
                         </div>
                     </div>
                 </div>
                 
-                <div class="col-md-6">
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Stato Servizi</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center">
+                <div class="settings-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-info-circle me-2"></i>Stato Servizi</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="service-status">
+                            <div class="service-item">
+                                <div class="service-info">
+                                    <i class="fab fa-google"></i>
                                     <span>Google Calendar</span>
-                                    {% if user.google_calendar_connected %}
-                                        <span class="status-badge status-connected">Collegato</span>
-                                    {% else %}
-                                        <span class="status-badge status-inactive">Non Collegato</span>
-                                    {% endif %}
                                 </div>
+                                            {% if user.google_calendar_connected %}
+                                                <span class="status-badge status-connected">Collegato</span>
+                                                <div class="service-actions mt-2">
+                                                    <label for="gcMode" class="form-label me-2">Permessi:</label>
+                                                    <select id="gcMode" class="form-select form-select-sm d-inline-block me-2" style="width:auto;">
+                                                        <option value="events" {% if user.google_permission_mode=='events' %}selected{% endif %}>Visualizza e modifica eventi</option>
+                                                        <option value="readonly" {% if user.google_permission_mode=='readonly' %}selected{% endif %}>Solo lettura eventi</option>
+                                                        <option value="full" {% if user.google_permission_mode in ['full', None] %}selected{% endif %}>Accesso completo calendar</option>
+                                                    </select>
+                                                    <a id="reauthLink" href="{{ url_for('auth.google_calendar_reauthorize') }}" class="btn btn-sm btn-warning me-2">Riautorizza</a>
+                                                    <form method="post" action="{{ url_for('auth.google_calendar_disconnect') }}" style="display:inline;">
+                                                        <button type="submit" class="btn btn-sm btn-danger">Disconnetti</button>
+                                                    </form>
+                                                </div>
+                                            {% else %}
+                                                <span class="status-badge status-inactive">Non Collegato</span>
+                                                <div class="service-actions mt-2">
+                                                    <label for="gcMode" class="form-label me-2">Permessi:</label>
+                                                    <select id="gcMode" class="form-select form-select-sm d-inline-block me-2" style="width:auto;">
+                                                        <option value="events" {% if user.google_permission_mode=='events' %}selected{% endif %}>Visualizza e modifica eventi</option>
+                                                        <option value="readonly" {% if user.google_permission_mode=='readonly' %}selected{% endif %}>Solo lettura eventi</option>
+                                                        <option value="full" {% if user.google_permission_mode in ['full', None] %}selected{% endif %}>Accesso completo calendar</option>
+                                                    </select>
+                                                    <a id="connectLink" href="{{ url_for('auth.google_calendar_connect') }}" class="btn btn-sm btn-primary">Collega Google Calendar</a>
+                                                </div>
+                                            {% endif %}
                             </div>
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center">
+                            <div class="service-item">
+                                <div class="service-info">
+                                    <i class="fas fa-robot"></i>
                                     <span>AI Assistant</span>
-                                    {% if user.ai_assistant_enabled and user.openai_api_key %}
-                                        <span class="status-badge status-connected">Attivo</span>
-                                    {% elif user.ai_assistant_enabled %}
-                                        <span class="status-badge status-warning">Configurazione Incompleta</span>
-                                    {% else %}
-                                        <span class="status-badge status-inactive">Disattivato</span>
-                                    {% endif %}
                                 </div>
+                                {% if user.ai_assistant_enabled and user.openai_api_key %}
+                                    <span class="status-badge status-connected">Attivo</span>
+                                {% elif user.ai_assistant_enabled %}
+                                    <span class="status-badge status-warning">Configurazione Incompleta</span>
+                                {% else %}
+                                    <span class="status-badge status-inactive">Disattivato</span>
+                                {% endif %}
                             </div>
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center">
+                            <div class="service-item">
+                                <div class="service-info">
+                                    <i class="fas fa-shield-alt"></i>
                                     <span>Sicurezza</span>
-                                    <span class="status-badge status-connected">Attiva</span>
                                 </div>
+                                <span class="status-badge status-connected">Attiva</span>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- RIGHT PANEL: AI Assistant + Today Summary -->
+    <aside class="ai-panel">
+        <div class="ai-assistant">
+            <div class="panel-header">
+                <h3>
+                    <i class="fas fa-robot"></i>
+                    AI Assistant
+                </h3>
+                <div class="ai-status">
+                    {% if user.ai_assistant_enabled and user.openai_api_key %}
+                        <span class="status-dot status-success"></span>
+                        <span>{{ user.ai_model_preference }}</span>
+                    {% else %}
+                        <span class="status-dot status-error"></span>
+                        <span>Non configurato</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="mini-chat">
+                <div id="miniChatMessages" class="mini-chat-messages">
+                    {% if user.ai_assistant_enabled and user.openai_api_key %}
+                        <div class="mini-message bot">
+                            💬 Chiedimi qualsiasi cosa sul tuo calendario!
+                        </div>
+                    {% else %}
+                        <div class="mini-message bot">
+                            ⚙️ <a href="{{ url_for('settings.ai_assistant') }}">Configura AI</a> per iniziare
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="mini-chat-input">
+                    <input type="text" id="miniChatInput" placeholder="Scrivi qui..."
+                           {% if not (user.ai_assistant_enabled and user.openai_api_key) %}disabled{% endif %}>
+                    <button id="miniSendMessage"
+                            {% if not (user.ai_assistant_enabled and user.openai_api_key) %}disabled{% endif %}>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="today-events">
+            <div class="panel-header">
+                <h3>
+                    <i class="fas fa-calendar-day"></i>
+                    Oggi
+                </h3>
+                <button class="btn-refresh" id="refreshToday">
+                    <i class="fas fa-sync"></i>
+                </button>
+            </div>
+            <div id="todayEventsList" class="event-list">
+                <div class="loading-state">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Caricamento...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="upcoming-tasks">
+            <div class="panel-header">
+                <h3>
+                    <i class="fas fa-tasks"></i>
+                    Task
+                </h3>
+                <button class="btn-add-task" id="addTask">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            <div id="tasksList" class="task-list">
+                <!-- Tasks will be loaded from localStorage -->
+            </div>
+            <div class="add-task-form" id="addTaskForm" style="display: none;">
+                <input type="text" id="newTaskInput" placeholder="Nuovo task...">
+                <div class="task-form-actions">
+                    <button id="saveTask" class="btn-save">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button id="cancelTask" class="btn-cancel">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<!-- Event Creation Modal -->
+<div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventModalLabel">Nuovo Evento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="eventForm">
+                    <div class="mb-3">
+                        <label for="eventTitle" class="form-label">Titolo *</label>
+                        <input type="text" class="form-control" id="eventTitle" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="eventStartDate" class="form-label">Data Inizio *</label>
+                            <input type="date" class="form-control" id="eventStartDate" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="eventStartTime" class="form-label">Ora Inizio *</label>
+                            <input type="time" class="form-control" id="eventStartTime" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="eventEndDate" class="form-label">Data Fine *</label>
+                            <input type="date" class="form-control" id="eventEndDate" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="eventEndTime" class="form-label">Ora Fine *</label>
+                            <input type="time" class="form-control" id="eventEndTime" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventDescription" class="form-label">Descrizione</label>
+                        <textarea class="form-control" id="eventDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventAttendees" class="form-label">Partecipanti (email, separati da virgola)</label>
+                        <input type="text" class="form-control" id="eventAttendees" 
+                               placeholder="mario@example.com, lucia@example.com">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-primary" id="saveEvent">
+                    <i class="fas fa-save me-1"></i>Salva Evento
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// Dashboard functionality
+// New Calendar Dashboard JavaScript
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize tabs if Bootstrap tabs are available
-    if (typeof bootstrap !== 'undefined') {
-        const tabList = document.querySelectorAll('#dashboardTabs a');
-        tabList.forEach(tab => {
-            const tabTrigger = new bootstrap.Tab(tab);
+    // Initialize navigation
+    initializeNavigation();
+    
+    // Initialize dashboard sections
+    initializeDashboard();
+    
+    // Initialize calendar functionality
+    initializeCalendar();
+    
+    // Initialize AI chat
+    initializeAIChat();
+    
+    // Initialize tasks
+    initializeTasks();
+    
+    // Load initial data
+    loadTodayEvents();
+    loadTasks();
+    
+    // Auto-refresh today events every 5 minutes
+    setInterval(loadTodayEvents, 5 * 60 * 1000);
+});
+
+// Reauthorization banner utilities
+function showReauthorizeBanner(reauthorizeUrl) {
+    // If banner already present, update link and return
+    let banner = document.getElementById('reauthorizeBanner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'reauthorizeBanner';
+        banner.className = 'reauthorize-banner';
+        banner.innerHTML = `
+            <div class="reauthorize-content">
+                <div class="reauthorize-text">Errore: autorizzazioni calendario mancanti.</div>
+                <div class="reauthorize-actions">
+                    <a id="reauthorizeLink" class="btn btn-warning">Riautorizza Google Calendar</a>
+                    <button id="reauthorizeDismiss" class="btn btn-secondary">Chiudi</button>
+                </div>
+            </div>
+        `;
+        const container = document.querySelector('.calendar-dashboard') || document.body;
+        container.insertBefore(banner, container.firstChild);
+
+        document.getElementById('reauthorizeDismiss').addEventListener('click', () => {
+            banner.remove();
         });
     }
 
-    // Load events functionality
+    const link = document.getElementById('reauthorizeLink');
+    if (link) {
+        link.href = reauthorizeUrl;
+        // default behavior will navigate to server route
+    }
+}
+
+function handleCalendarPermissionError(data) {
+    if (data && data.calendar_permission_error && data.reauthorize_url) {
+        showReauthorizeBanner(data.reauthorize_url);
+        return true;
+    }
+    return false;
+}
+
+// Navigation management
+function initializeNavigation() {
+    const navItems = document.querySelectorAll('.nav-item');
+    const sections = document.querySelectorAll('.content-section');
+    
+    navItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const targetSection = this.getAttribute('data-section');
+            
+            // Update active nav item
+            navItems.forEach(nav => nav.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update active section
+            sections.forEach(section => section.classList.remove('active'));
+            document.getElementById(targetSection + '-section').classList.add('active');
+            
+            // Load section-specific data
+            switch(targetSection) {
+                case 'calendar':
+                    loadCalendarData();
+                    break;
+                case 'assistant':
+                    focusChatInput();
+                    break;
+            }
+        });
+    });
+}
+
+// Dashboard initialization
+function initializeDashboard() {
+    // Load events count for today
+    updateEventCount();
+    
+    // Load available slots
+    updateAvailableSlots();
+}
+
+// Calendar functionality
+function initializeCalendar() {
+    // Initialize calendar grid (simple version)
+    createCalendarGrid();
+    
+    // Calendar navigation
+    const prevBtn = document.getElementById('prevMonth');
+    const nextBtn = document.getElementById('nextMonth');
+    
+    if (prevBtn) prevBtn.addEventListener('click', () => navigateMonth(-1));
+    if (nextBtn) nextBtn.addEventListener('click', () => navigateMonth(1));
+    
+    // Load events button
     const loadEventsBtn = document.getElementById('loadEvents');
     if (loadEventsBtn) {
-        loadEventsBtn.addEventListener('click', async function() {
-            const btn = this;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Caricamento...';
-            
-            try {
-                const response = await fetch('/calendar/events', { credentials: 'same-origin' });
-                const ct = response.headers.get('content-type') || '';
-                if (!ct.includes('application/json')) {
-                    throw new Error('Unexpected non-JSON response');
-                }
-                const data = await response.json();
-
-                // Server returns { events: [...] } on success or { error: '...' } on failure
-                if (data.events) {
-                    displayEvents(data.events);
-                    updateEventCount(Array.isArray(data.events) ? data.events.length : 0);
-                } else if (data.error) {
-                    throw new Error(data.error);
-                } else {
-                    throw new Error('Errore nel caricamento eventi');
-                }
-            } catch (error) {
-                console.error('Error loading events:', error);
-                alert('Errore nel caricamento degli eventi: ' + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-sync me-1"></i>Carica Eventi';
-            }
-        });
+        loadEventsBtn.addEventListener('click', loadEvents);
     }
-
-    // Check availability functionality
+    
+    // Check availability button
     const checkAvailabilityBtn = document.getElementById('checkAvailability');
     if (checkAvailabilityBtn) {
-        checkAvailabilityBtn.addEventListener('click', async function() {
-            const btn = this;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Controllo...';
-            
-            try {
-                const response = await fetch('/calendar/availability', { credentials: 'same-origin' });
-                const ct = response.headers.get('content-type') || '';
-                if (!ct.includes('application/json')) {
-                    throw new Error('Unexpected non-JSON response');
-                }
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    updateAvailableSlots(data.available_slots);
-                    alert(`Hai ${data.available_slots} slot liberi oggi!`);
-                } else {
-                    throw new Error(data.message || 'Errore nel controllo disponibilità');
-                }
-            } catch (error) {
-                console.error('Error checking availability:', error);
-                alert('Errore nel controllo disponibilità: ' + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-clock me-1"></i>Verifica Disponibilità';
-            }
-        });
+        checkAvailabilityBtn.addEventListener('click', checkAvailability);
     }
-
-    // Chat functionality
-    const chatInput = document.getElementById('chatInput');
-    const sendMessageBtn = document.getElementById('sendMessage');
     
-    if (chatInput && sendMessageBtn) {
+    // Event modal
+    initializeEventModal();
+}
+
+// AI Chat functionality
+function initializeAIChat() {
+    // Main chat
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendMessage');
+    
+    if (chatInput && sendBtn) {
         chatInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
         });
-
-        sendMessageBtn.addEventListener('click', sendMessage);
+        sendBtn.addEventListener('click', sendMessage);
     }
-});
+    
+    // Mini chat
+    const miniChatInput = document.getElementById('miniChatInput');
+    const miniSendBtn = document.getElementById('miniSendMessage');
+    
+    if (miniChatInput && miniSendBtn) {
+        miniChatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMiniMessage();
+            }
+        });
+        miniSendBtn.addEventListener('click', sendMiniMessage);
+    }
+}
 
-function displayEvents(events) {
-    const eventsContainer = document.getElementById('eventsContainer');
-    const eventsList = document.getElementById('eventsList');
-    const eventsPlaceholder = document.getElementById('eventsPlaceholder');
+// Tasks functionality
+function initializeTasks() {
+    const addTaskBtn = document.getElementById('addTask');
+    const saveTaskBtn = document.getElementById('saveTask');
+    const cancelTaskBtn = document.getElementById('cancelTask');
+    const newTaskInput = document.getElementById('newTaskInput');
+    const addTaskForm = document.getElementById('addTaskForm');
     
-    if (!eventsContainer) return;
-    
-    eventsContainer.innerHTML = '';
-    
-    if (events.length === 0) {
-        eventsContainer.innerHTML = '<div class="text-muted">Nessun evento trovato</div>';
-    } else {
-        events.forEach(event => {
-            const eventDiv = document.createElement('div');
-            eventDiv.className = 'event-item';
-            
-            const startTime = new Date(event.start.dateTime || event.start.date);
-            const endTime = new Date(event.end.dateTime || event.end.date);
-            
-            eventDiv.innerHTML = `
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="mb-1">${event.summary || 'Nessun titolo'}</h6>
-                        <small class="text-muted">
-                            ${startTime.toLocaleDateString('it-IT')} 
-                            ${event.start.dateTime ? startTime.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'}) : ''}
-                            ${event.end.dateTime ? ' - ' + endTime.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'}) : ''}
-                        </small>
-                    </div>
-                    <span class="badge bg-primary">Google</span>
-                </div>
-            `;
-            
-            eventsContainer.appendChild(eventDiv);
+    if (addTaskBtn) {
+        addTaskBtn.addEventListener('click', function() {
+            addTaskForm.style.display = 'block';
+            newTaskInput.focus();
         });
     }
     
-    if (eventsPlaceholder) eventsPlaceholder.style.display = 'none';
-    if (eventsList) eventsList.style.display = 'block';
+    if (saveTaskBtn) {
+        saveTaskBtn.addEventListener('click', saveNewTask);
+    }
+    
+    if (cancelTaskBtn) {
+        cancelTaskBtn.addEventListener('click', function() {
+            addTaskForm.style.display = 'none';
+            newTaskInput.value = '';
+        });
+    }
+    
+    if (newTaskInput) {
+        newTaskInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveNewTask();
+            }
+        });
+    }
+    
+    // Refresh today events
+    const refreshBtn = document.getElementById('refreshToday');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadTodayEvents);
+    }
 }
 
-function updateEventCount(count) {
+// Event Modal
+function initializeEventModal() {
+    const saveEventBtn = document.getElementById('saveEvent');
+    if (saveEventBtn) {
+        saveEventBtn.addEventListener('click', saveEvent);
+    }
+    
+    // Set default values for today
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const startTimeStr = String(today.getHours() + 1).padStart(2, '0') + ':00';
+    const endTimeStr = String(today.getHours() + 2).padStart(2, '0') + ':00';
+    
+    const startDateInput = document.getElementById('eventStartDate');
+    const endDateInput = document.getElementById('eventEndDate');
+    const startTimeInput = document.getElementById('eventStartTime');
+    const endTimeInput = document.getElementById('eventEndTime');
+    
+    if (startDateInput) startDateInput.value = todayStr;
+    if (endDateInput) endDateInput.value = todayStr;
+    if (startTimeInput) startTimeInput.value = startTimeStr;
+    if (endTimeInput) endTimeInput.value = endTimeStr;
+}
+
+// Calendar grid creation
+function createCalendarGrid() {
+    const calendarGrid = document.getElementById('calendar-grid');
+    if (!calendarGrid) return;
+    
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    
+    // Create header
+    const header = document.createElement('div');
+    header.className = 'calendar-header-row';
+    const days = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+    days.forEach(day => {
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'calendar-day-header';
+        dayHeader.textContent = day;
+        header.appendChild(dayHeader);
+    });
+    
+    // Create calendar body
+    const body = document.createElement('div');
+    body.className = 'calendar-body';
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    for (let i = 0; i < 42; i++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + i);
+        
+        const dayCell = document.createElement('div');
+        dayCell.className = 'calendar-day';
+        
+        if (currentDate.getMonth() !== month) {
+            dayCell.classList.add('other-month');
+        }
+        
+        if (currentDate.toDateString() === today.toDateString()) {
+            dayCell.classList.add('today');
+        }
+        
+        dayCell.innerHTML = `
+            <div class="day-number">${currentDate.getDate()}</div>
+            <div class="day-events" id="events-${currentDate.toISOString().split('T')[0]}"></div>
+        `;
+        
+        body.appendChild(dayCell);
+    }
+    
+    calendarGrid.innerHTML = '';
+    calendarGrid.appendChild(header);
+    calendarGrid.appendChild(body);
+}
+
+// Load calendar data
+function loadCalendarData() {
+    // This will be expanded when we integrate with the actual calendar API
+    console.log('Loading calendar data...');
+}
+
+// Navigate month
+function navigateMonth(direction) {
+    // This will be implemented to navigate between months
+    console.log('Navigate month:', direction);
+}
+
+// Load events functionality (preserved from original)
+async function loadEvents() {
+    const btn = document.getElementById('loadEvents');
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Caricamento...';
+
+    try {
+        const response = await fetch('/calendar/events', { credentials: 'same-origin' });
+        const ct = response.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+            throw new Error('Unexpected non-JSON response');
+        }
+        const data = await response.json();
+
+        if (handleCalendarPermissionError(data)) return;
+
+        if (data.events) {
+            displayEvents(data.events);
+            updateEventCount(Array.isArray(data.events) ? data.events.length : 0);
+        } else if (data.error) {
+            throw new Error(data.error);
+        } else {
+            throw new Error('Errore nel caricamento eventi');
+        }
+    } catch (error) {
+        console.error('Error loading events:', error);
+        showAlert('Errore nel caricamento degli eventi: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sync me-1"></i>Carica Eventi';
+    }
+}
+
+// Check availability functionality (preserved from original)
+async function checkAvailability() {
+    const btn = document.getElementById('checkAvailability');
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Controllo...';
+
+    try {
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+
+        const endTime = new Date(tomorrow);
+        endTime.setHours(17, 0, 0, 0);
+
+        const url = `/calendar/slots?start_date=${tomorrow.toISOString()}&end_date=${endTime.toISOString()}&duration=30`;
+
+        const response = await fetch(url, { credentials: 'same-origin' });
+        const ct = response.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+            throw new Error('Unexpected non-JSON response');
+        }
+        const data = await response.json();
+        if (handleCalendarPermissionError(data)) return;
+
+        if (data.slots) {
+            updateAvailableSlots(data.slots.length);
+            const slotsText = data.slots.slice(0, 3).map(slot => {
+                const start = new Date(slot.start);
+                return start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }).join(', ');
+            showAlert(`Slot disponibili domani (primi 3): ${slotsText}`, 'success');
+        } else if (data.error) {
+            throw new Error(data.error);
+        }
+    } catch (error) {
+        console.error('Error checking availability:', error);
+        showAlert('Errore nel controllo disponibilità: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-clock me-1"></i>Verifica Disponibilità';
+    }
+}
+
+// Display events in calendar view
+function displayEvents(events) {
+    // Clear existing events
+    document.querySelectorAll('.day-events').forEach(container => {
+        container.innerHTML = '';
+    });
+    
+    if (!events || events.length === 0) return;
+    
+    events.forEach(event => {
+        const startDate = new Date(event.start.dateTime || event.start.date);
+        const dateKey = startDate.toISOString().split('T')[0];
+        const container = document.getElementById(`events-${dateKey}`);
+        
+        if (container) {
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'calendar-event';
+            eventDiv.innerHTML = `
+                <div class="event-title">${event.summary || 'Nessun titolo'}</div>
+                ${event.start.dateTime ? `<div class="event-time">${startDate.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}</div>` : ''}
+            `;
+            container.appendChild(eventDiv);
+        }
+    });
+}
+
+// Update event count
+function updateEventCount(count = null) {
     const eventsCountEl = document.getElementById('eventsCount');
     if (eventsCountEl) {
-        eventsCountEl.textContent = count;
+        if (count !== null) {
+            eventsCountEl.textContent = count;
+        } else {
+            // Load today's events count
+            loadTodayEvents().then(events => {
+                eventsCountEl.textContent = events ? events.length : 0;
+            });
+        }
     }
 }
 
-function updateAvailableSlots(slots) {
+// Update available slots
+function updateAvailableSlots(slots = null) {
     const availableSlotsEl = document.getElementById('availableSlots');
     if (availableSlotsEl) {
-        availableSlotsEl.textContent = slots;
+        if (slots !== null) {
+            availableSlotsEl.textContent = slots;
+        } else {
+            availableSlotsEl.textContent = '-';
+        }
     }
 }
 
+// Send message (preserved and enhanced)
 async function sendMessage() {
     const chatInput = document.getElementById('chatInput');
     const chatMessages = document.getElementById('chatMessages');
@@ -513,16 +1010,13 @@ async function sendMessage() {
     if (!message) return;
     
     // Add user message to chat
-    addMessageToChat('user', message);
+    addMessageToChat('user', message, chatMessages);
     chatInput.value = '';
     
     try {
-        // Read CSRF token from meta tag (rendered by base.html)
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
         const headers = { 'Content-Type': 'application/json' };
         if (csrfToken) {
-            // include both header name variants to maximize compatibility with different CSRF middlewares
             headers['X-CSRFToken'] = csrfToken;
             headers['X-CSRF-Token'] = csrfToken;
         }
@@ -536,87 +1030,81 @@ async function sendMessage() {
 
         const ct = response.headers.get('content-type') || '';
         if (!ct.includes('application/json')) {
-            // Attempt to read text for better error message (likely HTML error page)
             const text = await response.text();
             console.error('Non-JSON response from /calendar/chat:', text);
-            console.error('Content-Type header:', ct);
-            console.error('Response status:', response.status, response.statusText);
-            addMessageToChat('bot', `Errore dal server: risposta non valida (${ct || 'sconosciuto'}). Status: ${response.status}. Controlla i log.`);
+            addMessageToChat('bot', `Errore dal server: risposta non valida (${ct || 'sconosciuto'}). Status: ${response.status}.`, chatMessages);
             return;
         }
 
         const data = await response.json();
-        
-        // Debug: log the full response to console for troubleshooting
-        console.log('Chat response received:', JSON.stringify(data, null, 2));
-        console.log('Response keys:', Object.keys(data));
-        console.log('Response type check - has message:', 'message' in data);
-        console.log('Response type check - has response:', 'response' in data);
-        console.log('Response type check - has error:', 'error' in data);
+        if (handleCalendarPermissionError(data)) {
+            addMessageToChat('bot', 'Errore: autorizzazioni calendario mancanti. Riautorizza per usare l\'assistente.', chatMessages);
+            return;
+        }
 
-        // Current backend returns { response: str, timestamp: str } or { error: str }
-        // Legacy frontend expected { message: str, intent: {...}, suggestions: [...], calendar_result: {...} }
         if (data.error) {
-            console.log('Error response detected:', data.error);
-            addMessageToChat('bot', 'Errore: ' + data.error);
+            addMessageToChat('bot', 'Errore: ' + data.error, chatMessages);
         } else if (data.response) {
-            // NEW: Handle current backend format with 'response' field
-            console.log('Response field detected:', data.response);
-            addMessageToChat('bot', data.response);
-        } else if (data.message) {
-            // LEGACY: Handle old format with 'message' field (if still used)
-            console.log('Legacy message field detected:', data.message);
-            addMessageToChat('bot', data.message);
-
-            // Show intent details if present (legacy format)
-            if (data.intent && data.intent.action) {
-                const intentText = `🎯 Azione rilevata: ${data.intent.action} (fiducia: ${Math.round((data.intent.confidence||0)*100)}%)`;
-                addMessageToChat('bot', intentText);
-            }
-
-            // Show calendar_result summary (legacy format)
-            if (data.calendar_result) {
-                if (data.calendar_result.events) {
-                    addMessageToChat('bot', `📅 Trovati ${data.calendar_result.events.length} eventi per ${data.calendar_result.date}`);
-                } else if (data.calendar_result.slots) {
-                    addMessageToChat('bot', `🕐 Trovati ${data.calendar_result.slots.length} slot liberi di ${data.calendar_result.duration} minuti`);
-                } else if (data.calendar_result.summary) {
-                    addMessageToChat('bot', `✅ Evento creato: ${data.calendar_result.summary}`);
-                }
-            }
-
-            // Suggestions (legacy format)
-            if (data.suggestions && Array.isArray(data.suggestions)) {
-                data.suggestions.forEach(s => addMessageToChat('bot', '💡 ' + s));
-            }
+            addMessageToChat('bot', data.response, chatMessages);
         } else {
-            console.error('Unexpected response format - no message, response, or error field found');
-            console.error('Full response object:', data);
-            addMessageToChat('bot', 'Errore: risposta non valida dal server (formato sconosciuto)');
+            addMessageToChat('bot', 'Errore: risposta non valida dal server', chatMessages);
         }
     } catch (error) {
         console.error('Error sending message:', error);
-        console.error('Error type:', error.constructor.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        
-        // Provide more detailed error messages based on error type
-        let errorMsg = 'Errore di connessione. Riprova più tardi.';
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            errorMsg = 'Errore di rete: impossibile raggiungere il server.';
-        } else if (error.name === 'SyntaxError') {
-            errorMsg = 'Errore: risposta del server non valida (JSON malformato).';
-        } else if (error.message) {
-            errorMsg = `Errore: ${error.message}`;
-        }
-        
-        addMessageToChat('bot', errorMsg);
+        addMessageToChat('bot', 'Errore di connessione. Riprova più tardi.', chatMessages);
     }
 }
 
-function addMessageToChat(sender, message) {
-    const chatMessages = document.getElementById('chatMessages');
-    if (!chatMessages) return;
+// Send mini message
+async function sendMiniMessage() {
+    const miniChatInput = document.getElementById('miniChatInput');
+    const miniChatMessages = document.getElementById('miniChatMessages');
+    
+    if (!miniChatInput || !miniChatMessages) return;
+    
+    const message = miniChatInput.value.trim();
+    if (!message) return;
+    
+    // Add user message to mini chat
+    addMiniMessage('user', message);
+    miniChatInput.value = '';
+    
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const headers = { 'Content-Type': 'application/json' };
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+            headers['X-CSRF-Token'] = csrfToken;
+        }
+
+        const response = await fetch('/calendar/chat', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: headers,
+            body: JSON.stringify({ message: message })
+        });
+
+        const data = await response.json();
+        if (handleCalendarPermissionError(data)) {
+            addMiniMessage('bot', 'Errore: autorizzazioni calendario mancanti. Riautorizza per usare l\'assistente.');
+            return;
+        }
+
+        if (data.error) {
+            addMiniMessage('bot', 'Errore: ' + data.error);
+        } else if (data.response) {
+            addMiniMessage('bot', data.response);
+        }
+    } catch (error) {
+        console.error('Error sending mini message:', error);
+        addMiniMessage('bot', 'Errore di connessione.');
+    }
+}
+
+// Add message to chat
+function addMessageToChat(sender, message, container) {
+    if (!container) container = document.getElementById('chatMessages');
+    if (!container) return;
     
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${sender}`;
@@ -626,138 +1114,335 @@ function addMessageToChat(sender, message) {
     bubbleDiv.innerHTML = message;
     
     messageDiv.appendChild(bubbleDiv);
-    chatMessages.appendChild(messageDiv);
+    container.appendChild(messageDiv);
     
     // Scroll to bottom
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    container.scrollTop = container.scrollHeight;
 }
 
-// Quick action functions
+// Add mini message
+function addMiniMessage(sender, message) {
+    const container = document.getElementById('miniChatMessages');
+    if (!container) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `mini-message ${sender}`;
+    messageDiv.innerHTML = sender === 'user' ? `👤 ${message}` : `🤖 ${message}`;
+    
+    container.appendChild(messageDiv);
+    container.scrollTop = container.scrollHeight;
+    
+    // Keep only last 5 messages
+    while (container.children.length > 5) {
+        container.removeChild(container.firstChild);
+    }
+}
+
+// Focus chat input
+function focusChatInput() {
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput && !chatInput.disabled) {
+        chatInput.focus();
+    }
+}
+
+// Load today's events
+async function loadTodayEvents() {
+    const container = document.getElementById('todayEventsList');
+    if (!container) return null;
+
+    container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i><span>Caricamento...</span></div>';
+
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const response = await fetch(`/calendar/events?date=${today}`, { credentials: 'same-origin' });
+        const data = await response.json();
+        if (handleCalendarPermissionError(data)) return null;
+
+        if (data.events) {
+            displayTodayEvents(data.events);
+            return data.events;
+        } else {
+            container.innerHTML = '<div class="empty-state">Nessun evento oggi</div>';
+            return [];
+        }
+    } catch (error) {
+        console.error('Error loading today events:', error);
+        container.innerHTML = '<div class="error-state">Errore nel caricamento</div>';
+        return null;
+    }
+}
+
+// Display today's events
+function displayTodayEvents(events) {
+    const container = document.getElementById('todayEventsList');
+    if (!container) return;
+    
+    if (!events || events.length === 0) {
+        container.innerHTML = '<div class="empty-state">Nessun evento oggi</div>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    events.slice(0, 5).forEach(event => {
+        const eventDiv = document.createElement('div');
+        eventDiv.className = 'event-item';
+        
+        const startTime = new Date(event.start.dateTime || event.start.date);
+        const timeStr = event.start.dateTime ? 
+            startTime.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'}) : 
+            'Tutto il giorno';
+        
+        eventDiv.innerHTML = `
+            <div class="event-time">${timeStr}</div>
+            <div class="event-title">${event.summary || 'Nessun titolo'}</div>
+        `;
+        
+        container.appendChild(eventDiv);
+    });
+}
+
+// Tasks management
+function loadTasks() {
+    const tasks = JSON.parse(localStorage.getItem('calendar-tasks') || '[]');
+    displayTasks(tasks);
+}
+
+function displayTasks(tasks) {
+    const container = document.getElementById('tasksList');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (tasks.length === 0) {
+        container.innerHTML = '<div class="empty-state">Nessun task</div>';
+        return;
+    }
+    
+    tasks.forEach((task, index) => {
+        const taskDiv = document.createElement('div');
+        taskDiv.className = 'task-item';
+        taskDiv.innerHTML = `
+            <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${index})">
+            <span class="task-text ${task.completed ? 'completed' : ''}">${task.text}</span>
+            <button class="btn-delete" onclick="deleteTask(${index})">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        container.appendChild(taskDiv);
+    });
+}
+
+function saveNewTask() {
+    const input = document.getElementById('newTaskInput');
+    const form = document.getElementById('addTaskForm');
+    
+    if (!input || !input.value.trim()) return;
+    
+    const tasks = JSON.parse(localStorage.getItem('calendar-tasks') || '[]');
+    tasks.push({
+        text: input.value.trim(),
+        completed: false,
+        created: new Date().toISOString()
+    });
+    
+    localStorage.setItem('calendar-tasks', JSON.stringify(tasks));
+    
+    input.value = '';
+    form.style.display = 'none';
+    
+    displayTasks(tasks);
+}
+
+function toggleTask(index) {
+    const tasks = JSON.parse(localStorage.getItem('calendar-tasks') || '[]');
+    if (tasks[index]) {
+        tasks[index].completed = !tasks[index].completed;
+        localStorage.setItem('calendar-tasks', JSON.stringify(tasks));
+        displayTasks(tasks);
+    }
+}
+
+function deleteTask(index) {
+    const tasks = JSON.parse(localStorage.getItem('calendar-tasks') || '[]');
+    tasks.splice(index, 1);
+    localStorage.setItem('calendar-tasks', JSON.stringify(tasks));
+    displayTasks(tasks);
+}
+
+// Event creation modal
 function createQuickEvent() {
-    const title = prompt('Titolo evento:');
-    if (!title) return;
-    
-    const datetime = prompt('Data e ora (es. 2024-01-15 14:30):');
-    if (!datetime) return;
-    
-    // Use AI assistant to create event
-    const message = `Crea evento "${title}" il ${datetime}`;
-    document.getElementById('chatInput').value = message;
-    sendMessage();
+    const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+    modal.show();
 }
 
+async function saveEvent() {
+    const form = document.getElementById('eventForm');
+    const modal = bootstrap.Modal.getInstance(document.getElementById('eventModal'));
+    
+    // Get form data
+    const title = document.getElementById('eventTitle').value.trim();
+    const startDate = document.getElementById('eventStartDate').value;
+    const startTime = document.getElementById('eventStartTime').value;
+    const endDate = document.getElementById('eventEndDate').value;
+    const endTime = document.getElementById('eventEndTime').value;
+    const description = document.getElementById('eventDescription').value.trim();
+    const attendees = document.getElementById('eventAttendees').value.trim();
+    
+    // Validation
+    if (!title || !startDate || !startTime || !endDate || !endTime) {
+        showAlert('Compila tutti i campi obbligatori', 'error');
+        return;
+    }
+    
+    // Create Date objects representing local wall time
+    const startDateTime = new Date(`${startDate}T${startTime}`);
+    const endDateTime = new Date(`${endDate}T${endTime}`);
+    // Determine client timezone (IANA name) when available
+    const clientTz = (Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
+    
+    if (endDateTime <= startDateTime) {
+        showAlert('La data/ora di fine deve essere successiva a quella di inizio', 'error');
+        return;
+    }
+    
+    // Prepare data
+    // Send both wall-time (no offset) and client timezone to allow server to
+    // interpret naive datetimes in the user's timezone. We also include
+    // the ISO with offset as a convenience.
+    const localIsoNoOffset = (d) => {
+        // YYYY-MM-DDTHH:MM:SS (no timezone designator)
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    };
+
+    const eventData = {
+        title: title,
+        // wall-time without offset — server will interpret using client_timezone if provided
+        start_time: localIsoNoOffset(startDateTime),
+        end_time: localIsoNoOffset(endDateTime),
+        // Also include explicit client timezone and an ISO with offset for redundancy
+        client_timezone: clientTz,
+        start_time_iso_with_offset: startDateTime.toISOString(),
+        end_time_iso_with_offset: endDateTime.toISOString(),
+        description: description,
+        attendees: attendees ? attendees.split(',').map(email => email.trim()) : []
+    };
+    
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const headers = { 'Content-Type': 'application/json' };
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+            headers['X-CSRF-Token'] = csrfToken;
+        }
+        
+        const response = await fetch('/calendar/events', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: headers,
+            body: JSON.stringify(eventData)
+        });
+        
+        const data = await response.json();
+        if (handleCalendarPermissionError(data)) return;
+        
+        if (data.event) {
+            showAlert('Evento creato con successo!', 'success');
+            modal.hide();
+            form.reset();
+            
+            // Refresh events
+            loadTodayEvents();
+            if (typeof loadEvents === 'function') {
+                loadEvents();
+            }
+        } else if (data.error) {
+            showAlert('Errore nella creazione: ' + data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error creating event:', error);
+        showAlert('Errore di connessione durante la creazione dell\'evento', 'error');
+    }
+}
+
+// Utility functions
+function showAlert(message, type = 'info') {
+    // Create alert element
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Add to page
+    const container = document.querySelector('.calendar-dashboard') || document.body;
+    container.insertBefore(alert, container.firstChild);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Quick action functions (preserved from original)
 function findFreeTime() {
     const message = "Quando sono libero oggi?";
-    document.getElementById('chatInput').value = message;
-    sendMessage();
+    const chatInput = document.getElementById('chatInput') || document.getElementById('miniChatInput');
+    if (chatInput) {
+        chatInput.value = message;
+        if (chatInput.id === 'chatInput') {
+            sendMessage();
+        } else {
+            sendMiniMessage();
+        }
+    }
 }
 
 function viewWeekly() {
     const message = "Mostra la mia agenda per questa settimana";
-    document.getElementById('chatInput').value = message;
-    sendMessage();
+    const chatInput = document.getElementById('chatInput') || document.getElementById('miniChatInput');
+    if (chatInput) {
+        chatInput.value = message;
+        if (chatInput.id === 'chatInput') {
+            sendMessage();
+        } else {
+            sendMiniMessage();
+        }
+    }
 }
 </script>
 
-{% if user.google_calendar_connected %}
 <script>
-// Calendar JavaScript functionality
+// Wire up permission dropdown to connect/reauthorize links
 document.addEventListener('DOMContentLoaded', function() {
-    // Load Events button
-    document.getElementById('loadEvents').addEventListener('click', function() {
-        fetch('/calendar/events', { credentials: 'same-origin' })
-            .then(response => {
-                const ct = response.headers.get('content-type') || '';
-                if (!ct.includes('application/json')) {
-                    throw new Error('Unexpected non-JSON response');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.error) {
-                    alert('Errore: ' + data.error);
-                    return;
-                }
+    const connectLink = document.getElementById('connectLink');
+    const reauthLink = document.getElementById('reauthLink');
+    const modeSelects = document.querySelectorAll('#gcMode');
 
-                const container = document.getElementById('eventsContainer');
-                const eventsList = document.getElementById('eventsList');
+    function getSelectedMode() {
+        const sel = document.querySelector('#gcMode');
+        return sel ? sel.value : 'events';
+    }
 
-                const events = Array.isArray(data.events) ? data.events : [];
-                if (events.length > 0) {
-                    container.innerHTML = '';
-                    events.slice(0, 5).forEach(event => {
-                        const div = document.createElement('div');
-                        div.className = 'list-group-item';
+    if (connectLink) {
+        connectLink.addEventListener('click', function(e) {
+            // append mode query param to href
+            const mode = getSelectedMode();
+            this.href = this.href.split('?')[0] + '?mode=' + encodeURIComponent(mode);
+        });
+    }
 
-                        const start = event.start.dateTime || event.start.date;
-                        const startDate = new Date(start);
-
-                        div.innerHTML = `
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">${event.summary || 'Senza titolo'}</h6>
-                                <small>${startDate.toLocaleString()}</small>
-                            </div>
-                            ${event.description ? `<p class="mb-1 text-muted">${event.description.substring(0, 100)}...</p>` : ''}
-                        `;
-                        container.appendChild(div);
-                    });
-                    eventsList.style.display = 'block';
-                } else {
-                    container.innerHTML = '<div class="text-muted">Nessun evento trovato</div>';
-                    eventsList.style.display = 'block';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Errore nel caricamento degli eventi');
-            });
-    });
-    
-    // Check Availability button  
-    document.getElementById('checkAvailability').addEventListener('click', function() {
-        const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(9, 0, 0, 0);
-        
-        const endTime = new Date(tomorrow);
-        endTime.setHours(17, 0, 0, 0);
-        
-        const url = `/calendar/availability?start=${tomorrow.toISOString()}&end=${endTime.toISOString()}&duration=30`;
-        
-        fetch(url, { credentials: 'same-origin' })
-            .then(response => {
-                const ct = response.headers.get('content-type') || '';
-                if (!ct.includes('application/json')) {
-                    throw new Error('Unexpected non-JSON response');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.error) {
-                    alert('Errore: ' + data.error);
-                    return;
-                }
-                
-                const slots = data.available_slots || [];
-                if (slots.length > 0) {
-                    const slotsText = slots.slice(0, 3).map(slot => {
-                        const start = new Date(slot.start);
-                        return start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                    }).join(', ');
-                    alert(`Slot disponibili domani (primi 3): ${slotsText}`);
-                } else {
-                    alert('Nessuno slot disponibile domani');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Errore nel controllo disponibilità');
-            });
-    });
-    
-    // Note: chat is handled by the unified chat functions defined earlier in this template.
+    if (reauthLink) {
+        reauthLink.addEventListener('click', function(e) {
+            const mode = getSelectedMode();
+            this.href = this.href.split('?')[0] + '?mode=' + encodeURIComponent(mode);
+        });
+    }
 });
 </script>
-{% endif %}
+
 {% endblock %}
