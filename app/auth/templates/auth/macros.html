@@ -1,0 +1,71 @@
+{% macro render_input(field, label=None, icon=None, hint=None, autocomplete=None, autofocus=False) -%}
+    {% set field_id = field.id %}
+    {% set classes = 'auth-input' + (' has-error' if field.errors else '') %}
+    {% set described = [] %}
+    {% if hint %}
+        {% set _ = described.append(field_id ~ '-hint') %}
+    {% endif %}
+    {% if field.errors %}
+        {% set _ = described.append(field_id ~ '-errors') %}
+    {% endif %}
+    {% set attrs = namespace(value={'class': classes, 'id': field_id, 'aria-invalid': 'true' if field.errors else 'false'}) %}
+    {% if described %}
+        {% set _ = attrs.value.update({'aria-describedby': described|join(' ')}) %}
+    {% endif %}
+    {% if autocomplete %}
+        {% set _ = attrs.value.update({'autocomplete': autocomplete}) %}
+    {% endif %}
+    {% if autofocus %}
+        {% set _ = attrs.value.update({'autofocus': 'autofocus'}) %}
+    {% endif %}
+    <div class="auth-field">
+        <label class="auth-label" for="{{ field_id }}">{{ label or field.label.text }}</label>
+        <div class="auth-input-wrapper">
+            {% if icon %}
+            <span class="auth-input-icon" aria-hidden="true"><i class="{{ icon }}"></i></span>
+            {% endif %}
+            {{ field(**attrs.value) }}
+            {% if field.type in ('PasswordField', 'Password') %}
+            <button type="button"
+                    class="auth-toggle"
+                    data-password-toggle
+                    data-target="{{ field_id }}"
+                    aria-controls="{{ field_id }}"
+                    aria-expanded="false">
+                <span class="visually-hidden">Mostra o nascondi password</span>
+                <i class="fa-regular fa-eye"></i>
+            </button>
+            {% endif %}
+        </div>
+        {% if hint %}
+        <p class="auth-hint" id="{{ field_id }}-hint">{{ hint }}</p>
+        {% endif %}
+        {% if field.errors %}
+        <ul class="auth-errors" id="{{ field_id }}-errors">
+            {% for error in field.errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+{%- endmacro %}
+
+{% macro render_checkbox(field, label=None) -%}
+    {% set field_id = field.id %}
+    <div class="auth-checkbox">
+        {{ field(class_='auth-checkbox__input', id=field_id) }}
+        <label class="auth-checkbox__label" for="{{ field_id }}">{{ label or field.label.text }}</label>
+    </div>
+{%- endmacro %}
+
+{% macro render_form_alert(form) -%}
+    {% if form.errors %}
+    <div class="auth-alert" role="alert" aria-live="polite">
+        <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+        <div>
+            <p class="auth-alert__title">Controlla i campi evidenziati.</p>
+            <p class="auth-alert__hint">Alcuni valori non sono validi, correggili e riprova.</p>
+        </div>
+    </div>
+    {% endif %}
+{%- endmacro %}

@@ -610,9 +610,12 @@ function showReauthorizeBanner(reauthorizeUrl) {
         const container = document.querySelector('.calendar-dashboard') || document.body;
         container.insertBefore(banner, container.firstChild);
 
-        document.getElementById('reauthorizeDismiss').addEventListener('click', () => {
-            banner.remove();
-        });
+        const dismissBtn = document.getElementById('reauthorizeDismiss');
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', () => {
+                banner.remove();
+            });
+        }
     }
 
     const link = document.getElementById('reauthorizeLink');
@@ -645,11 +648,12 @@ function initializeNavigation() {
             navItems.forEach(nav => nav.classList.remove('active'));
             this.classList.add('active');
             
-            // Update active section
-            sections.forEach(section => section.classList.remove('active'));
-            document.getElementById(targetSection + '-section').classList.add('active');
-            
-            // Load section-specific data
+        // Update active section
+        sections.forEach(section => section.classList.remove('active'));
+        const targetElement = document.getElementById(targetSection + '-section');
+        if (targetElement) {
+            targetElement.classList.add('active');
+        }            // Load section-specific data
             switch(targetSection) {
                 case 'calendar':
                     loadCalendarData();
@@ -740,8 +744,8 @@ function initializeTasks() {
     
     if (addTaskBtn) {
         addTaskBtn.addEventListener('click', function() {
-            addTaskForm.style.display = 'block';
-            newTaskInput.focus();
+            if (addTaskForm) addTaskForm.style.display = 'block';
+            if (newTaskInput) newTaskInput.focus();
         });
     }
     
@@ -751,8 +755,8 @@ function initializeTasks() {
     
     if (cancelTaskBtn) {
         cancelTaskBtn.addEventListener('click', function() {
-            addTaskForm.style.display = 'none';
-            newTaskInput.value = '';
+            if (addTaskForm) addTaskForm.style.display = 'none';
+            if (newTaskInput) newTaskInput.value = '';
         });
     }
     
@@ -1248,8 +1252,8 @@ function saveNewTask() {
     
     localStorage.setItem('calendar-tasks', JSON.stringify(tasks));
     
-    input.value = '';
-    form.style.display = 'none';
+    if (input) input.value = '';
+    if (form) form.style.display = 'none';
     
     displayTasks(tasks);
 }
@@ -1272,13 +1276,17 @@ function deleteTask(index) {
 
 // Event creation modal
 function createQuickEvent() {
-    const modal = new bootstrap.Modal(document.getElementById('eventModal'));
-    modal.show();
+    const modalEl = document.getElementById('eventModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
 }
 
 async function saveEvent() {
     const form = document.getElementById('eventForm');
-    const modal = bootstrap.Modal.getInstance(document.getElementById('eventModal'));
+    const modalEl = document.getElementById('eventModal');
+    const modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
     
     // Get form data
     const title = document.getElementById('eventTitle').value.trim();
@@ -1349,8 +1357,8 @@ async function saveEvent() {
         
         if (data.event) {
             showAlert('Evento creato con successo!', 'success');
-            modal.hide();
-            form.reset();
+            if (modal) modal.hide();
+            if (form) form.reset();
             
             // Refresh events
             loadTodayEvents();

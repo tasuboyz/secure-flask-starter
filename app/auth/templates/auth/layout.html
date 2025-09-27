@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block body_class %}auth-body{% endblock %}
+{% block main_class %}auth-main{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/auth.js') }}" defer></script>
+{% endblock %}
+
+{% block auth_tagline %}Ottimizza le tue giornate con l'assistente calendario intelligente.{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+  <div class="auth-card" role="document">
+    <header class="auth-card__header">
+      <a class="auth-logo" href="{{ url_for('main.index') }}" aria-label="Vai alla homepage di Calendar AI">
+        <span class="auth-logo__mark" aria-hidden="true"><i class="fa-solid fa-calendar-days"></i></span>
+        <span class="auth-logo__text">Calendar AI</span>
+      </a>
+      {% set tagline = self.auth_tagline() %}
+      {% if tagline.strip() %}
+      <p class="auth-tagline">{{ tagline|safe }}</p>
+      {% endif %}
+    </header>
+    <div class="auth-card__body" role="region" aria-labelledby="auth-page-title">
+      <h1 class="auth-title" id="auth-page-title">{% block auth_title %}{% endblock %}</h1>
+      {% set description = self.auth_description() %}
+      {% if description.strip() %}
+      <p class="auth-description">{{ description|safe }}</p>
+      {% endif %}
+      {% block auth_alerts %}{% endblock %}
+      {% block auth_form %}{% endblock %}
+      {% block auth_secondary %}{% endblock %}
+    </div>
+    <footer class="auth-card__footer">
+      {% block auth_footer %}
+      <p class="auth-footer-text">Proteggiamo i tuoi dati con crittografia e controlli sugli accessi.</p>
+      {% endblock %}
+    </footer>
+  </div>
+  <aside class="auth-aside" aria-label="Suggerimenti Calendar AI">
+    {% block auth_aside %}
+    <div class="auth-aside__content">
+      <h2>Agenda intelligente</h2>
+      <p>Pianifica riunioni efficaci, sincronizza i calendari e lascia che l'AI automatizzi i follow-up.</p>
+      <ul>
+        <li>Onboarding in 3 minuti</li>
+        <li>Integrazione Google Workspace</li>
+        <li>Promemoria personalizzati</li>
+      </ul>
+    </div>
+    {% endblock %}
+  </aside>
+</section>
+{% endblock %}

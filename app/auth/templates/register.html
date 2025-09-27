@@ -1,65 +1,43 @@
-{% extends "base.html" %}
+{% extends "auth/layout.html" %}
+{% from "auth/macros.html" import render_input, render_form_alert %}
 
-{% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title text-center">Crea un nuovo account</h3>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="">
-                    {{ form.hidden_tag() }}
-                    
-                    <div class="mb-3">
-                        {{ form.email.label(class="form-label") }}
-                        {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
-                        {% if form.email.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.email.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.password.label(class="form-label") }}
-                        {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
-                        {% if form.password.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.password.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                        <div class="form-text">La password deve essere di almeno 8 caratteri.</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.password2.label(class="form-label") }}
-                        {{ form.password2(class="form-control" + (" is-invalid" if form.password2.errors else "")) }}
-                        {% if form.password2.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.password2.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="d-grid">
-                        {{ form.submit(class="btn btn-primary") }}
-                    </div>
-                </form>
-                
-                <div class="text-center mt-3">
-                    <p>
-                        Hai già un account? <a href="{{ url_for('auth.login') }}">Accedi qui</a>
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
+{% block auth_tagline %}Inizia in pochi minuti.{% endblock %}
+{% block auth_title %}Crea un nuovo account{% endblock %}
+{% block auth_description %}
+Registra il tuo spazio di lavoro per sfruttare l'assistente calendario e collaborare con il team.
+{% endblock %}
+
+{% block auth_alerts %}
+  {{ render_form_alert(form) }}
+{% endblock %}
+
+{% block auth_form %}
+<form class="auth-form" method="POST" action="" data-auth-form>
+  {{ form.hidden_tag() }}
+  {{ render_input(form.email, icon="fa-regular fa-envelope", autocomplete="email", autofocus=True) }}
+  {{ render_input(form.password, icon="fa-solid fa-lock", hint="Almeno 8 caratteri, includi lettera e numero", autocomplete="new-password") }}
+  {{ render_input(form.password2, icon="fa-solid fa-lock", label="Conferma password", autocomplete="new-password") }}
+  <button type="submit"
+          name="{{ form.submit.name }}"
+          value="{{ form.submit.label.text }}"
+          class="auth-button"
+          data-primary-action>
+    <span class="auth-button__label">{{ form.submit.label.text }}</span>
+  </button>
+</form>
+{% endblock %}
+
+{% block auth_secondary %}
+<div class="auth-divider" role="presentation">
+  <span>oppure</span>
+</div>
+<div class="auth-social">
+  <a href="{{ url_for('auth.google_login') }}" class="auth-social__button auth-social__button--google" aria-label="Registrati con Google">
+    <i class="fab fa-google" aria-hidden="true"></i>
+    <span>Registrati con Google</span>
+  </a>
+</div>
+<div class="auth-links">
+  <p>Hai già un account? <a href="{{ url_for('auth.login') }}">Accedi qui</a></p>
 </div>
 {% endblock %}
