@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-sm-10 col-md-8 col-lg-5">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4 p-md-5">
+          <div class="text-center mb-4">
+            <h1 class="h4 mb-1">{% block auth_title %}{% endblock %}</h1>
+            {% set lead = self.auth_lead() %}
+            {% if lead.strip() %}
+              <p class="text-muted mb-0">{{ lead|safe }}</p>
+            {% endif %}
+          </div>
+          {% block auth_body %}{% endblock %}
+        </div>
+      </div>
+      <div class="text-center mt-4">
+        {% block auth_footer %}{% endblock %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

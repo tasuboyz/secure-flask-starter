@@ -1,0 +1,23 @@
+{% extends "auth/basic/layout.html" %}
+{% from "auth/basic/macros.html" import render_form_errors, render_field %}
+
+{% block auth_title %}Crea un nuovo account{% endblock %}
+{% block auth_lead %}Registrati per accedere alle funzionalità dell'app.{% endblock %}
+
+{% block auth_body %}
+  {{ render_form_errors(form) }}
+  <form method="POST" novalidate>
+    {{ form.hidden_tag() }}
+    {{ render_field(form.email, placeholder="nome@azienda.com", autofocus=True, autocomplete="email") }}
+    {{ render_field(form.password, placeholder="Almeno 8 caratteri", help_text="Usa una password unica e sicura.", autocomplete="new-password") }}
+    {{ render_field(form.password2, label="Conferma password", placeholder="Ripeti la password", autocomplete="new-password") }}
+    <div class="d-grid">
+      <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+    </div>
+  </form>
+{% endblock %}
+
+{% block auth_footer %}
+  <span class="text-muted">Hai già un account?</span>
+  <a href="{{ url_for('auth.login') }}">Accedi qui</a>
+{% endblock %}

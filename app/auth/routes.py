@@ -8,6 +8,41 @@ from app.auth.forms import LoginForm, RegistrationForm, ForgotPasswordForm, Rese
 from app.auth.email_utils import send_password_reset_email
 from app.extensions import db, limiter, oauth
 from app.models import User
+from jinja2 import TemplateNotFound
+
+
+def _select_auth_template(name: str) -> str:
+    """Return the template path for the requested auth view respecting the configured variant."""
+    variant = (current_app.config.get('AUTH_TEMPLATE_VARIANT') or 'modern').lower()
+    normalized = name if name.endswith('.html') else f'{name}.html'
+
+    candidates = []
+    if variant and variant not in ('modern', 'default'):
+        candidates.append(f'{variant}/{normalized}')
+    candidates.append(normalized)
+
+    env = current_app.jinja_env
+    for index, candidate in enumerate(candidates):
+        try:
+            env.get_or_select_template(candidate)
+            if index > 0 and candidate == normalized and candidates[0] != normalized:
+                current_app.logger.debug(
+                    'Auth template variant "%s" missing for "%s", falling back to default template.',
+                    variant,
+                    normalized,
+                )
+            return candidate
+        except TemplateNotFound:
+            continue
+
+    raise TemplateNotFound(normalized)
+
+
+def render_auth_template(name: str, **context):
+    """Wrapper around render_template that supports multiple auth template variants."""
+    template_name = _select_auth_template(name)
+    context.setdefault('auth_template_variant', (current_app.config.get('AUTH_TEMPLATE_VARIANT') or 'modern').lower())
+    return render_template(template_name, **context)
 
 
 @bp.route('/login', methods=['GET', 'POST'])
@@ -40,7 +75,7 @@ def login():
         else:
             flash('Email o password non validi', 'danger')
     
-    return render_template('login.html', title='Accedi', form=form)
+    return render_auth_template('login', title='Accedi', form=form)
 
 
 @bp.route('/register', methods=['GET', 'POST'])
@@ -62,7 +97,7 @@ def register():
         flash('Registrazione completata! Ora puoi accedere.', 'success')
         return redirect(url_for('auth.login'))
     
-    return render_template('register.html', title='Registrati', form=form)
+    return render_auth_template('register', title='Registrati', form=form)
 
 
 @bp.route('/logout', methods=['POST'])
@@ -92,7 +127,7 @@ def forgot_password():
         flash('Se l\'email esiste nel sistema, riceverai le istruzioni per il reset.', 'info')
         return redirect(url_for('auth.login'))
     
-    return render_template('forgot_password.html', title='Reset Password', form=form)
+    return render_auth_template('forgot_password', title='Reset Password', form=form)
 
 
 @bp.route('/reset-password/<token>', methods=['GET', 'POST'])
@@ -115,7 +150,7 @@ def reset_password(token):
         flash('Password aggiornata con successo!', 'success')
         return redirect(url_for('auth.login'))
     
-    return render_template('reset_password.html', title='Reset Password', form=form)
+    return render_auth_template('reset_password', title='Reset Password', form=form)
 
 
 @bp.route('/google')

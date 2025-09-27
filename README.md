@@ -173,6 +173,22 @@ MAIL_PASSWORD=your-app-password
 REDIS_URL=redis://localhost:6379/0
 ```
 
+### Varianti UI di autenticazione
+
+Il progetto include due famiglie di template per le pagine di accesso (`app/auth/templates`):
+
+- **modern** (default): layout più ricco pensato per progetti completi.
+- **basic**: versione minimale Bootstrap, ideale per partire da uno scheletro e riutilizzarla in altri progetti.
+
+Per scegliere la variante imposta `AUTH_TEMPLATE_VARIANT` nel file `.env` o nella configurazione Python:
+
+```bash
+# .env
+AUTH_TEMPLATE_VARIANT=basic  # oppure modern
+```
+
+Il fallback è sempre `modern`: se una pagina non esiste nella variante selezionata, verrà usato automaticamente il template predefinito.
+
 ## Sicurezza
 
 ### Features implementate

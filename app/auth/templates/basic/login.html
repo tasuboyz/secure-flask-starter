@@ -1,0 +1,32 @@
+{% extends "auth/basic/layout.html" %}
+{% from "auth/basic/macros.html" import render_form_errors, render_field, render_checkbox %}
+
+{% block auth_title %}Accedi al tuo account{% endblock %}
+{% block auth_lead %}Inserisci le credenziali per aprire il pannello di controllo.{% endblock %}
+
+{% block auth_body %}
+  {{ render_form_errors(form) }}
+  <form method="POST" novalidate>
+    {{ form.hidden_tag() }}
+    {{ render_field(form.email, placeholder="nome@azienda.com", autofocus=True, autocomplete="email") }}
+    {{ render_field(form.password, placeholder="La tua password", autocomplete="current-password") }}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      {{ render_checkbox(form.remember_me) }}
+      <a class="small" href="{{ url_for('auth.forgot_password') }}">Password dimenticata?</a>
+    </div>
+    <div class="d-grid">
+      <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+    </div>
+  </form>
+  <div class="mt-4">
+    <div class="text-center text-muted small mb-2">Oppure</div>
+    <div class="d-grid">
+      <a class="btn btn-outline-secondary" href="{{ url_for('auth.google_login') }}">Accedi con Google</a>
+    </div>
+  </div>
+{% endblock %}
+
+{% block auth_footer %}
+  <span class="text-muted">Nuovo su Pro Project?</span>
+  <a href="{{ url_for('auth.register') }}">Crea un account</a>
+{% endblock %}

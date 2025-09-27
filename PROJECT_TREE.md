@@ -1,20 +1,4 @@
-# Piano: Miglioramento Interfaccia Login e Sezioni di Accesso
-
-Questo documento descrive un piano pratico e mobile-first per migliorare l'interfaccia di login e le pagine di accesso correlate (registrazione, recupero password, gestione sessione, integrazione SSO/MFA) per l'app "Calendar AI Dashboard".
-
-Obiettivi principali
-
-- Migliorare l'usabilità su mobile (mobile-first), accessibilità e sicurezza dell'esperienza di autenticazione.
-- Ridurre i punti di attrito (login, registrazione, reset password) e aumentare il tasso di conversione utente.
-- Mantenere compatibilità con le attuali protezioni server-side (CSRF, rate-limiting) e integrare SSO/2FA come opzioni progressive.
-
-Contesto e principi guida
-
-- Mobile-first: progettare layout e flussi a partire da viewport strette (3600-420px). Utilizzare pattern di input grandi per il touch, etichette chiare, e posizionare le azioni primarie in basso o al centro per facile accesso con il pollice.
-- Accessibilità: rispettare WCAG 2.1 AA per colori, contrasto, focus states, etichette aria e navigazione via tastiera.
-- Sicurezza: conservare CSRF token nelle form (gi
-
-# Project tree for C:\Temp\secure-flask-starter
+﻿# Project tree for C:\Temp\secure-flask-starter
 Generated: 2025-09-27 18:12:03
 
 ```

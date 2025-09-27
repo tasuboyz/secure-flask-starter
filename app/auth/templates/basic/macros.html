@@ -1,0 +1,43 @@
+{% macro render_form_errors(form) -%}
+  {% if form.errors %}
+    <div class="alert alert-danger" role="alert">
+      Alcuni campi non sono validi. Controlla i messaggi in rosso e riprova.
+    </div>
+  {% endif %}
+{%- endmacro %}
+
+{% macro render_field(field, label=None, placeholder=None, help_text=None, autofocus=False, autocomplete=None) -%}
+  {% set label_text = label or field.label.text %}
+  {% set classes = 'form-control' + (' is-invalid' if field.errors else '') %}
+  {% set attrs = namespace(value={'class': classes, 'id': field.id}) %}
+  {% if placeholder %}
+    {% set _ = attrs.value.update({'placeholder': placeholder}) %}
+  {% endif %}
+  {% if autofocus %}
+    {% set _ = attrs.value.update({'autofocus': True}) %}
+  {% endif %}
+  {% if autocomplete %}
+    {% set _ = attrs.value.update({'autocomplete': autocomplete}) %}
+  {% endif %}
+  <div class="mb-3">
+    <label class="form-label" for="{{ field.id }}">{{ label_text }}</label>
+    {{ field(**attrs.value) }}
+    {% if help_text %}
+      <div class="form-text">{{ help_text }}</div>
+    {% endif %}
+    {% if field.errors %}
+      <div class="invalid-feedback">
+        {% for error in field.errors %}
+          {{ error }}{% if not loop.last %}<br>{% endif %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro render_checkbox(field, label=None) -%}
+  <div class="form-check mb-3">
+    {{ field(class_='form-check-input', id=field.id) }}
+    <label class="form-check-label" for="{{ field.id }}">{{ label or field.label.text }}</label>
+  </div>
+{%- endmacro %}

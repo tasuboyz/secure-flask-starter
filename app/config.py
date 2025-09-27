@@ -22,6 +22,7 @@ class Config:
     # Security settings
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None
+    AUTH_TEMPLATE_VARIANT = os.environ.get('AUTH_TEMPLATE_VARIANT', 'modern')
     
     # Rate limiting
     RATELIMIT_STORAGE_URI = os.environ.get('REDIS_URL') or 'memory://'
